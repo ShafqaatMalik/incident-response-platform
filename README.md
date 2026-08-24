@@ -42,3 +42,4 @@ not a demo of "AI agents talking to each other."
 ## Local development
 
 _(to be filled in once the FastAPI foundation is in place)_
+# incident-response-platform
