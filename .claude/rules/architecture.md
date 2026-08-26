@@ -39,15 +39,15 @@ implementation shortcut.
 - No LangGraph or other third-party orchestration framework — a
   deliberate portfolio differentiation choice.
 - SDK choice is per-agent, matched to task shape — not fixed
-  project-wide:
-  - Triage, Diagnosis, Remediation: single-call, structured-output
-    agents on the plain **Anthropic Python SDK**
-    (`client.messages.parse()` against a Pydantic schema). No tool
-    access, no autonomous loop.
-  - Investigation: provisionally flagged as the candidate for a real
-    tool-driven agent loop (the actual `claude-agent-sdk`, or the
-    Anthropic API's tool runner) — decide when that agent is scoped,
-    not before.
+  project-wide: Triage, Investigation, Diagnosis, and Remediation are
+  all single-call, structured-output agents on the plain **Anthropic
+  Python SDK** (`client.messages.parse()` against a Pydantic schema).
+  No agent has Claude-callable tools or an autonomous loop.
+- Investigation's evidence-gathering (logs, deployments, metrics) is
+  decided by orchestration code — plain Python functions in
+  `app/tools/` (e.g. `get_recent_logs()`) called directly by
+  `app/orchestration/investigation_workflow.py` before the agent call
+  — not exposed to Claude as tool-use schemas.
 - Orchestration logic (the state machine, transition rules, retry/fallback
   policy) lives in application code (`app/orchestration/`), not in prompts.
 

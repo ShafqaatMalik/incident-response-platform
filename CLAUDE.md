@@ -16,8 +16,10 @@ Step 3 of the Build Order (`ARCHITECTURE.md` §20): **add the agents.**
   (`DETECTED` → `TRIAGED`/`ESCALATED`) — agent, state machine, workflow,
   `Incident` model, `/internal/incidents` endpoints, full test pyramid
   (unit/integration/workflow/evaluation), CI `workflow` job.
-- Next: Investigation, Diagnosis, and Remediation agents, then the
-  Validator.
+- Done: Investigation Agent and `TRIAGED` → `INVESTIGATING`/`ESCALATED`
+  — agent, workflow, `app/tools/` stubs (logs/deployments/metrics),
+  `/internal/incidents/{id}/investigate`, full test pyramid.
+- Next: Diagnosis and Remediation agents, then the Validator.
 
 Don't jump ahead to step 4 (production controls), step 5 (deploy), or
 later steps until all four agents and the Validator exist.

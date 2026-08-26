@@ -3,11 +3,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.agents.triage import TriageFailedError, build_triage_context, call_triage_agent_with_retry
 from app.core.config import Settings
 from app.models.incident import Incident, IncidentStatus
+from app.orchestration.evidence import dedupe_evidence
 from app.orchestration.state_machine import transition
-
-
-def _dedupe(items: list[str]) -> list[str]:
-    return list(dict.fromkeys(items))
 
 
 async def run_triage(incident: Incident, session: AsyncSession, settings: Settings) -> Incident:
@@ -23,7 +20,7 @@ async def run_triage(incident: Incident, session: AsyncSession, settings: Settin
         incident.severity = result.severity.value
         incident.affected_service = result.affected_service
         incident.symptoms = result.symptoms
-        incident.evidence = _dedupe(list(incident.evidence or []) + result.initial_evidence)
+        incident.evidence = dedupe_evidence(list(incident.evidence or []) + result.initial_evidence)
 
     await session.commit()
     await session.refresh(incident)

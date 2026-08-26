@@ -12,6 +12,7 @@ from app.db.base import Base
 class IncidentStatus(StrEnum):
     DETECTED = "detected"
     TRIAGED = "triaged"
+    INVESTIGATING = "investigating"
     ESCALATED = "escalated"
 
 
@@ -20,6 +21,12 @@ class Severity(StrEnum):
     MEDIUM = "medium"
     HIGH = "high"
     CRITICAL = "critical"
+
+
+class Confidence(StrEnum):
+    LOW = "low"
+    MEDIUM = "medium"
+    HIGH = "high"
 
 
 class Incident(Base):
@@ -38,3 +45,7 @@ class Incident(Base):
     symptoms: Mapped[list[str] | None] = mapped_column(ARRAY(Text), nullable=True)
     evidence: Mapped[list[str]] = mapped_column(ARRAY(Text), nullable=False, default=list)
     escalation_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    error_patterns: Mapped[list[str] | None] = mapped_column(ARRAY(Text), nullable=True)
+    deployment_correlation: Mapped[str | None] = mapped_column(Text, nullable=True)
+    service_health_summary: Mapped[str | None] = mapped_column(Text, nullable=True)
+    investigation_confidence: Mapped[str | None] = mapped_column(String(16), nullable=True)

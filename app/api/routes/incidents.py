@@ -8,6 +8,7 @@ from app.core.config import Settings, get_settings
 from app.core.rate_limit import limiter, rate_limit_value
 from app.models.incident import Incident, IncidentStatus
 from app.models.schemas import IncidentCreate, IncidentResponse
+from app.orchestration.investigation_workflow import run_investigation
 from app.orchestration.triage_workflow import run_triage
 
 router = APIRouter(
@@ -50,3 +51,21 @@ async def triage_incident(
             detail=f"Incident {incident_id} not found.",
         )
     return await run_triage(incident, session, settings)
+
+
+@router.post("/{incident_id}/investigate", response_model=IncidentResponse)
+@limiter.limit(rate_limit_value)
+async def investigate_incident(
+    request: Request,
+    response: Response,
+    incident_id: uuid.UUID,
+    session: AsyncSession = Depends(get_db_session),
+    settings: Settings = Depends(get_settings),
+) -> Incident:
+    incident = await session.get(Incident, incident_id)
+    if incident is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Incident {incident_id} not found.",
+        )
+    return await run_investigation(incident, session, settings)

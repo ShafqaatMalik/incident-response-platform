@@ -4,9 +4,9 @@ from fastapi import Depends, FastAPI
 from fastapi.responses import Response
 from slowapi.middleware import SlowAPIMiddleware
 
-from app.agents.triage import has_anthropic_credentials
 from app.api.deps import require_api_key
 from app.api.routes import documents, health, incidents
+from app.core.anthropic_client import has_anthropic_credentials
 from app.core.config import get_settings
 from app.core.errors import register_exception_handlers
 from app.core.rate_limit import limiter
@@ -24,7 +24,8 @@ def create_app() -> FastAPI:
         logger.warning(
             "ANTHROPIC_API_KEY/ANTHROPIC_AUTH_TOKEN not set — the app will still start "
             "(documents/health are unaffected), but any /internal/incidents/*/triage "
-            "call will fail and escalate the incident."
+            "or /internal/incidents/*/investigate call will fail and escalate the "
+            "incident."
         )
 
     app = FastAPI(title="Incident Response Platform — Document API", version="0.1.0")

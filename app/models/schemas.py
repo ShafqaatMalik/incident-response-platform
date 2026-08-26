@@ -3,7 +3,7 @@ from datetime import datetime
 
 from pydantic import BaseModel, Field
 
-from app.models.incident import IncidentStatus, Severity
+from app.models.incident import Confidence, IncidentStatus, Severity
 
 
 class DocumentCreate(BaseModel):
@@ -56,6 +56,10 @@ class IncidentResponse(BaseModel):
     symptoms: list[str] | None
     evidence: list[str]
     escalation_reason: str | None
+    error_patterns: list[str] | None
+    deployment_correlation: str | None
+    service_health_summary: str | None
+    investigation_confidence: Confidence | None
 
     model_config = {"from_attributes": True}
 
@@ -76,3 +80,55 @@ class TriageResult(BaseModel):
     affected_service: str = Field(min_length=1, max_length=255)
     symptoms: list[str] = Field(min_length=1)
     initial_evidence: list[str] = Field(min_length=1)
+
+
+class LogEntry(BaseModel):
+    """Shape returned by app/tools/logs.py's get_recent_logs()."""
+
+    timestamp: datetime
+    level: str
+    message: str
+
+
+class DeploymentEvent(BaseModel):
+    """Shape returned by app/tools/deployments.py's get_deployment_history()."""
+
+    timestamp: datetime
+    version: str
+    description: str
+
+
+class ServiceMetrics(BaseModel):
+    """Shape returned by app/tools/metrics.py's get_service_metrics()."""
+
+    error_rate: float
+    p99_latency_ms: float
+    cpu_utilization: float
+
+
+class InvestigationContext(BaseModel):
+    """Scoped agent input — incident's triage output plus orchestration-fetched
+    evidence, never the full Incident row or its history."""
+
+    trigger: str
+    severity: Severity
+    affected_service: str
+    symptoms: list[str]
+    recent_logs: list[LogEntry]
+    deployment_history: list[DeploymentEvent]
+    service_metrics: ServiceMetrics
+
+
+class InvestigationResult(BaseModel):
+    """The Investigation Agent's validated output. Exactly ARCHITECTURE.md §4's
+    Investigation Agent fields — no free-text root-cause reasoning (that's
+    Diagnosis's job). Every field is required and non-empty: the agent must
+    state findings explicitly, e.g. "no correlated deployment found" or "no
+    error patterns found in the sampled logs", rather than leaving a field
+    ambiguously unset or hallucinating a finding to satisfy validation."""
+
+    error_patterns: list[str] = Field(min_length=1)
+    deployment_correlation: str = Field(min_length=1)
+    service_health_summary: str = Field(min_length=1)
+    confidence: Confidence
+    evidence: list[str] = Field(min_length=1)

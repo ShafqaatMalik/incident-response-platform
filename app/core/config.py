@@ -12,6 +12,7 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
     environment: str = "development"
     triage_model: str = "claude-sonnet-5"
+    investigation_model: str = "claude-sonnet-5"
 
 
 @lru_cache
