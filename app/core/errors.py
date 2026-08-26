@@ -6,6 +6,7 @@ from fastapi.responses import JSONResponse
 from slowapi.errors import RateLimitExceeded
 
 from app.observability.logging import get_request_id
+from app.orchestration.state_machine import InvalidTransitionError
 
 logger = logging.getLogger(__name__)
 
@@ -50,6 +51,16 @@ def register_exception_handlers(app: FastAPI) -> None:
             status.HTTP_429_TOO_MANY_REQUESTS,
             "rate_limited",
             "Rate limit exceeded.",
+        )
+
+    @app.exception_handler(InvalidTransitionError)
+    async def invalid_transition_handler(
+        request: Request, exc: InvalidTransitionError
+    ) -> JSONResponse:
+        return _error_response(
+            status.HTTP_409_CONFLICT,
+            "invalid_transition",
+            str(exc),
         )
 
     @app.exception_handler(Exception)

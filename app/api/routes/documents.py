@@ -5,8 +5,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_db_session, require_api_key
-from app.core.config import get_settings
-from app.core.rate_limit import limiter
+from app.core.rate_limit import limiter, rate_limit_value
 from app.models.document import Document
 from app.models.schemas import DocumentCreate, DocumentListResponse, DocumentResponse
 from app.services.readability import compute_readability
@@ -15,12 +14,8 @@ from app.services.summarizer import extractive_summary
 router = APIRouter(prefix="/documents", tags=["documents"], dependencies=[Depends(require_api_key)])
 
 
-def _rate_limit_value() -> str:
-    return f"{get_settings().rate_limit_per_minute}/minute"
-
-
 @router.post("", response_model=DocumentResponse, status_code=status.HTTP_201_CREATED)
-@limiter.limit(_rate_limit_value)
+@limiter.limit(rate_limit_value)
 async def create_document(
     request: Request,
     response: Response,
@@ -52,7 +47,7 @@ async def create_document(
 
 
 @router.get("", response_model=DocumentListResponse)
-@limiter.limit(_rate_limit_value)
+@limiter.limit(rate_limit_value)
 async def list_documents(
     request: Request,
     response: Response,
@@ -74,7 +69,7 @@ async def list_documents(
 
 
 @router.get("/{document_id}", response_model=DocumentResponse)
-@limiter.limit(_rate_limit_value)
+@limiter.limit(rate_limit_value)
 async def get_document(
     request: Request,
     response: Response,

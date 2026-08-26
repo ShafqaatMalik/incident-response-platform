@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import async_engine_from_config
 
 from app.core.config import get_settings
 from app.db.base import Base
-from app.models import document  # noqa: F401 — registers Document with Base.metadata
+from app.models import document, incident  # noqa: F401 — registers models with Base.metadata
 
 config = context.config
 if config.config_file_name is not None:

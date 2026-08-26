@@ -1,8 +1,7 @@
 from collections.abc import AsyncGenerator
 
 import pytest_asyncio
-from httpx import ASGITransport, AsyncClient
-from sqlalchemy.ext.asyncio import AsyncEngine
+from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
 from app.db.base import Base
 
@@ -16,9 +15,7 @@ async def _clean_tables(engine: AsyncEngine) -> AsyncGenerator[None]:
 
 
 @pytest_asyncio.fixture
-async def client(engine: AsyncEngine) -> AsyncGenerator[AsyncClient]:
-    from app.main import app
-
-    transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as ac:
-        yield ac
+async def db_session(engine: AsyncEngine) -> AsyncGenerator[AsyncSession]:
+    session_factory = async_sessionmaker(engine, expire_on_commit=False)
+    async with session_factory() as session:
+        yield session

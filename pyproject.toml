@@ -16,6 +16,7 @@ dependencies = [
     "textstat>=0.7.4,<1.0",
     "python-json-logger>=3.0,<4.0",
     "prometheus-client>=0.21,<1.0",
+    "anthropic>=1.0.0",
 ]
 
 [dependency-groups]
@@ -58,3 +59,7 @@ asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "session"
 asyncio_default_test_loop_scope = "session"
 testpaths = ["tests"]
+markers = [
+    "evaluation: hits a live LLM, costs money — never runs by default or in per-PR CI",
+]
+addopts = "-m 'not evaluation'"

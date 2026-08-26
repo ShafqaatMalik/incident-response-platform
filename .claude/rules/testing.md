@@ -31,9 +31,13 @@ Source of truth: `ARCHITECTURE.md` §12–13.
 
 ## CI/CD gating (per PR)
 
-Lint → Unit → Integration → Workflow (mocked LLM) → Security checks →
-Docker build → Deploy. All of these must be fast/free/deterministic — if a
-new test can't meet that, it belongs in the nightly evaluation run instead.
+Lint gates Unit, Integration, and Workflow (mocked LLM) — those three run
+in parallel, not chained off each other, since they don't depend on each
+other's results. Docker build then needs all three to pass before it
+runs. Security checks and Deploy are future build-order steps, not yet
+implemented in CI. All of these must be fast/free/deterministic — if a
+new test can't meet that, it belongs in the nightly evaluation run
+instead.
 
 ## Failure tests are not optional
 

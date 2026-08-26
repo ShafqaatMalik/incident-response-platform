@@ -7,9 +7,20 @@ executes. Full design: `ARCHITECTURE.md`. Day-to-day log: `STATUS.md`.
 
 ## Current phase
 
-Harness setup (`ARCHITECTURE.md` §20, step 1). **No application code yet.**
-Do not create `app/`, `tests/`, `evals/`, `migrations/`, or `frontend/`
-until this phase is explicitly done and the user says to move on.
+Step 3 of the Build Order (`ARCHITECTURE.md` §20): **add the agents.**
+
+- Done: step 1 (service & architecture) and step 2 (non-AI FastAPI
+  foundation — auth, rate limiting, logging, metrics, Docker, tests,
+  CI/CD), commit `736ad9d`.
+- Done: Triage Agent and the first real state transition
+  (`DETECTED` → `TRIAGED`/`ESCALATED`) — agent, state machine, workflow,
+  `Incident` model, `/internal/incidents` endpoints, full test pyramid
+  (unit/integration/workflow/evaluation), CI `workflow` job.
+- Next: Investigation, Diagnosis, and Remediation agents, then the
+  Validator.
+
+Don't jump ahead to step 4 (production controls), step 5 (deploy), or
+later steps until all four agents and the Validator exist.
 
 ## Rules
 
@@ -26,5 +37,10 @@ until this phase is explicitly done and the user says to move on.
   code before the non-AI FastAPI foundation exists).
 - Keep `STATUS.md` in mind for what's already decided (hosting, DB,
   budget) — don't re-litigate those choices without being asked.
-- No dev/test/deploy commands are defined yet — nothing to run until the
-  FastAPI foundation exists.
+- Dev/test commands: `docker compose up -d` (Postgres + app),
+  `uv run alembic upgrade head` (migrations), `uv run pytest` (runs
+  unit + integration + workflow; the evaluation tier is excluded by
+  default — run it separately with `uv run pytest -m evaluation`, real
+  LLM calls, costs money), `uv run ruff check .` / `ruff format --check .`
+  / `mypy app`. No deploy command yet — Cloud Run deploy is Build Order
+  step 5.
