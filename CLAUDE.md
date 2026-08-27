@@ -7,7 +7,8 @@ executes. Full design: `ARCHITECTURE.md`. Day-to-day log: `STATUS.md`.
 
 ## Current phase
 
-Step 3 of the Build Order (`ARCHITECTURE.md` §20): **add the agents.**
+Step 3 of the Build Order (`ARCHITECTURE.md` §20) is **done**: all four
+agents plus the Validator now exist.
 
 - Done: step 1 (service & architecture) and step 2 (non-AI FastAPI
   foundation — auth, rate limiting, logging, metrics, Docker, tests,
@@ -19,10 +20,22 @@ Step 3 of the Build Order (`ARCHITECTURE.md` §20): **add the agents.**
 - Done: Investigation Agent and `TRIAGED` → `INVESTIGATING`/`ESCALATED`
   — agent, workflow, `app/tools/` stubs (logs/deployments/metrics),
   `/internal/incidents/{id}/investigate`, full test pyramid.
-- Next: Diagnosis and Remediation agents, then the Validator.
+- Done: Diagnosis Agent and `INVESTIGATING` → `DIAGNOSED`/`ESCALATED` —
+  agent, workflow, `/internal/incidents/{id}/diagnose`, full test pyramid.
+- Done: Remediation Agent and `DIAGNOSED` → `VALIDATING`/`ESCALATED`
+  — agent, workflow, `app/policies/remediation_policy.py` (fixed
+  action-type → risk-level mapping), `/internal/incidents/{id}/remediate`,
+  full test pyramid.
+- Done: the Validator and `VALIDATING` → `AWAITING_APPROVAL`/`ESCALATED`
+  — a code-level check, not an agent: `app/policies/validation_policy.py`
+  (fixed 6-rule set), `app/orchestration/validation_workflow.py`,
+  `/internal/incidents/{id}/validate`, full test pyramid (no evaluation
+  tier — no LLM call to evaluate). No new migration — reads only fields
+  already on `Incident`. All four agents + the Validator now exist.
+- Next: step 4 (production controls) — not started yet, confirm scope
+  before beginning.
 
-Don't jump ahead to step 4 (production controls), step 5 (deploy), or
-later steps until all four agents and the Validator exist.
+Don't jump ahead to step 5 (deploy) or later steps until step 4 is done.
 
 ## Rules
 

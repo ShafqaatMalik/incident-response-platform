@@ -44,14 +44,26 @@ def test_investigating_to_escalated_is_allowed() -> None:
     assert incident.status == IncidentStatus.ESCALATED.value
 
 
-def test_diagnosed_to_awaiting_approval_is_allowed() -> None:
+def test_diagnosed_to_validating_is_allowed() -> None:
     incident = _incident(IncidentStatus.DIAGNOSED)
-    transition(incident, IncidentStatus.AWAITING_APPROVAL)
-    assert incident.status == IncidentStatus.AWAITING_APPROVAL.value
+    transition(incident, IncidentStatus.VALIDATING)
+    assert incident.status == IncidentStatus.VALIDATING.value
 
 
 def test_diagnosed_to_escalated_is_allowed() -> None:
     incident = _incident(IncidentStatus.DIAGNOSED)
+    transition(incident, IncidentStatus.ESCALATED)
+    assert incident.status == IncidentStatus.ESCALATED.value
+
+
+def test_validating_to_awaiting_approval_is_allowed() -> None:
+    incident = _incident(IncidentStatus.VALIDATING)
+    transition(incident, IncidentStatus.AWAITING_APPROVAL)
+    assert incident.status == IncidentStatus.AWAITING_APPROVAL.value
+
+
+def test_validating_to_escalated_is_allowed() -> None:
+    incident = _incident(IncidentStatus.VALIDATING)
     transition(incident, IncidentStatus.ESCALATED)
     assert incident.status == IncidentStatus.ESCALATED.value
 

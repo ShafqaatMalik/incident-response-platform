@@ -30,7 +30,7 @@ def _diagnosed_incident() -> Incident:
     )
 
 
-async def test_happy_path_transitions_diagnosed_to_awaiting_approval(
+async def test_happy_path_transitions_diagnosed_to_validating(
     db_session: AsyncSession,
 ) -> None:
     incident = _diagnosed_incident()
@@ -43,7 +43,7 @@ async def test_happy_path_transitions_diagnosed_to_awaiting_approval(
     ):
         result = await run_remediation(incident, db_session, get_settings())
 
-    assert result.status == IncidentStatus.AWAITING_APPROVAL.value
+    assert result.status == IncidentStatus.VALIDATING.value
     assert result.proposed_action_type == "restart_service"
     assert result.action_risk_level == "medium"
     assert result.action_justification == "connection pool exhaustion clears on restart"

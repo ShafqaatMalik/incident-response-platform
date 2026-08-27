@@ -4,7 +4,8 @@ ALLOWED_TRANSITIONS: dict[IncidentStatus, frozenset[IncidentStatus]] = {
     IncidentStatus.DETECTED: frozenset({IncidentStatus.TRIAGED, IncidentStatus.ESCALATED}),
     IncidentStatus.TRIAGED: frozenset({IncidentStatus.INVESTIGATING, IncidentStatus.ESCALATED}),
     IncidentStatus.INVESTIGATING: frozenset({IncidentStatus.DIAGNOSED, IncidentStatus.ESCALATED}),
-    IncidentStatus.DIAGNOSED: frozenset(
+    IncidentStatus.DIAGNOSED: frozenset({IncidentStatus.VALIDATING, IncidentStatus.ESCALATED}),
+    IncidentStatus.VALIDATING: frozenset(
         {IncidentStatus.AWAITING_APPROVAL, IncidentStatus.ESCALATED}
     ),
     IncidentStatus.AWAITING_APPROVAL: frozenset(),

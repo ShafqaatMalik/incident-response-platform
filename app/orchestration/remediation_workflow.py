@@ -19,7 +19,7 @@ async def run_remediation(
     # status == DIAGNOSED. Checking this first — rather than letting a bad
     # call crash while reading those fields — is what turns an out-of-order
     # call into a clean 409 instead of an unhandled 500.
-    validate_transition(incident, IncidentStatus.AWAITING_APPROVAL)
+    validate_transition(incident, IncidentStatus.VALIDATING)
     assert incident.affected_service is not None, "TRIAGED invariant: affected_service is set"
     assert incident.root_cause is not None, "DIAGNOSED invariant: root_cause is set"
     assert incident.diagnosis_confidence is not None, (
@@ -39,7 +39,7 @@ async def run_remediation(
         transition(incident, IncidentStatus.ESCALATED)
         incident.escalation_reason = str(exc)
     else:
-        transition(incident, IncidentStatus.AWAITING_APPROVAL)
+        transition(incident, IncidentStatus.VALIDATING)
         incident.proposed_action_type = result.action_type.value
         incident.action_risk_level = risk_level_for(result.action_type).value
         incident.action_justification = result.justification

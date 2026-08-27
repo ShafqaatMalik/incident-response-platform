@@ -14,6 +14,7 @@ class IncidentStatus(StrEnum):
     TRIAGED = "triaged"
     INVESTIGATING = "investigating"
     DIAGNOSED = "diagnosed"
+    VALIDATING = "validating"
     AWAITING_APPROVAL = "awaiting_approval"
     ESCALATED = "escalated"
 

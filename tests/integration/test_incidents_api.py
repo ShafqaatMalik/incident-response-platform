@@ -37,6 +37,19 @@ REMEDIATION_RESULT = RemediationResult(
     action_detail="restart checkout-api",
 )
 
+LOW_CONFIDENCE_DIAGNOSIS_RESULT = DiagnosisResult(
+    root_cause="unclear — insufficient evidence to pin down a cause",
+    evidence=["intermittent elevated latency"],
+    confidence="low",
+    alternative_explanations=["no plausible alternative explanations found"],
+)
+
+NO_ACTION_NEEDED_REMEDIATION_RESULT = RemediationResult(
+    action_type="no_action_needed",
+    justification="symptoms consistent with a transient spike",
+    action_detail="no corrective action needed: error rate returned to baseline",
+)
+
 
 async def test_create_incident(client: AsyncClient, auth_headers: dict[str, str]) -> None:
     resp = await client.post(
@@ -356,7 +369,7 @@ async def test_remediate_missing_incident_returns_404(
     assert resp.json()["error"]["code"] == "not_found"
 
 
-async def test_remediate_happy_path_transitions_to_awaiting_approval(
+async def test_remediate_happy_path_transitions_to_validating(
     client: AsyncClient, auth_headers: dict[str, str]
 ) -> None:
     create_resp = await client.post(
@@ -394,7 +407,7 @@ async def test_remediate_happy_path_transitions_to_awaiting_approval(
 
     assert resp.status_code == 200
     body = resp.json()
-    assert body["status"] == "awaiting_approval"
+    assert body["status"] == "validating"
     assert body["proposed_action_type"] == "restart_service"
     assert body["action_risk_level"] == "medium"
     assert body["action_justification"] == "connection pool exhaustion clears on restart"
@@ -478,3 +491,175 @@ async def test_remediate_before_diagnose_returns_409_not_500(
     assert resp.status_code == 409
     assert resp.json()["error"]["code"] == "invalid_transition"
     mock.assert_not_called()
+
+
+async def test_validate_missing_incident_returns_404(
+    client: AsyncClient, auth_headers: dict[str, str]
+) -> None:
+    resp = await client.post(
+        "/internal/incidents/00000000-0000-0000-0000-000000000000/validate",
+        headers=auth_headers,
+    )
+    assert resp.status_code == 404
+    assert resp.json()["error"]["code"] == "not_found"
+
+
+async def test_validate_happy_path_transitions_to_awaiting_approval(
+    client: AsyncClient, auth_headers: dict[str, str]
+) -> None:
+    create_resp = await client.post(
+        "/internal/incidents",
+        json={"trigger": "Checkout API returning 500s", "initial_evidence": ["500s in logs"]},
+        headers=auth_headers,
+    )
+    incident_id = create_resp.json()["id"]
+
+    with patch(
+        "app.orchestration.triage_workflow.call_triage_agent_with_retry",
+        AsyncMock(return_value=TRIAGE_RESULT),
+    ):
+        await client.post(f"/internal/incidents/{incident_id}/triage", headers=auth_headers)
+
+    with patch(
+        "app.orchestration.investigation_workflow.call_investigation_agent_with_retry",
+        AsyncMock(return_value=INVESTIGATION_RESULT),
+    ):
+        await client.post(f"/internal/incidents/{incident_id}/investigate", headers=auth_headers)
+
+    with patch(
+        "app.orchestration.diagnosis_workflow.call_diagnosis_agent_with_retry",
+        AsyncMock(return_value=DIAGNOSIS_RESULT),
+    ):
+        await client.post(f"/internal/incidents/{incident_id}/diagnose", headers=auth_headers)
+
+    with patch(
+        "app.orchestration.remediation_workflow.call_remediation_agent_with_retry",
+        AsyncMock(return_value=REMEDIATION_RESULT),
+    ):
+        await client.post(f"/internal/incidents/{incident_id}/remediate", headers=auth_headers)
+
+    resp = await client.post(f"/internal/incidents/{incident_id}/validate", headers=auth_headers)
+
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["status"] == "awaiting_approval"
+    assert body["escalation_reason"] is None
+
+
+async def test_validate_twice_returns_409(
+    client: AsyncClient, auth_headers: dict[str, str]
+) -> None:
+    create_resp = await client.post(
+        "/internal/incidents",
+        json={"trigger": "Checkout API returning 500s"},
+        headers=auth_headers,
+    )
+    incident_id = create_resp.json()["id"]
+
+    with patch(
+        "app.orchestration.triage_workflow.call_triage_agent_with_retry",
+        AsyncMock(return_value=TRIAGE_RESULT),
+    ):
+        await client.post(f"/internal/incidents/{incident_id}/triage", headers=auth_headers)
+
+    with patch(
+        "app.orchestration.investigation_workflow.call_investigation_agent_with_retry",
+        AsyncMock(return_value=INVESTIGATION_RESULT),
+    ):
+        await client.post(f"/internal/incidents/{incident_id}/investigate", headers=auth_headers)
+
+    with patch(
+        "app.orchestration.diagnosis_workflow.call_diagnosis_agent_with_retry",
+        AsyncMock(return_value=DIAGNOSIS_RESULT),
+    ):
+        await client.post(f"/internal/incidents/{incident_id}/diagnose", headers=auth_headers)
+
+    with patch(
+        "app.orchestration.remediation_workflow.call_remediation_agent_with_retry",
+        AsyncMock(return_value=REMEDIATION_RESULT),
+    ):
+        await client.post(f"/internal/incidents/{incident_id}/remediate", headers=auth_headers)
+
+    first = await client.post(f"/internal/incidents/{incident_id}/validate", headers=auth_headers)
+    assert first.status_code == 200
+
+    second = await client.post(f"/internal/incidents/{incident_id}/validate", headers=auth_headers)
+    assert second.status_code == 409
+    assert second.json()["error"]["code"] == "invalid_transition"
+
+
+async def test_validate_before_remediate_returns_409_not_500(
+    client: AsyncClient, auth_headers: dict[str, str]
+) -> None:
+    create_resp = await client.post(
+        "/internal/incidents",
+        json={"trigger": "Checkout API returning 500s"},
+        headers=auth_headers,
+    )
+    incident_id = create_resp.json()["id"]
+
+    with patch(
+        "app.orchestration.triage_workflow.call_triage_agent_with_retry",
+        AsyncMock(return_value=TRIAGE_RESULT),
+    ):
+        await client.post(f"/internal/incidents/{incident_id}/triage", headers=auth_headers)
+
+    with patch(
+        "app.orchestration.investigation_workflow.call_investigation_agent_with_retry",
+        AsyncMock(return_value=INVESTIGATION_RESULT),
+    ):
+        await client.post(f"/internal/incidents/{incident_id}/investigate", headers=auth_headers)
+
+    with patch(
+        "app.orchestration.diagnosis_workflow.call_diagnosis_agent_with_retry",
+        AsyncMock(return_value=DIAGNOSIS_RESULT),
+    ):
+        await client.post(f"/internal/incidents/{incident_id}/diagnose", headers=auth_headers)
+
+    resp = await client.post(f"/internal/incidents/{incident_id}/validate", headers=auth_headers)
+
+    assert resp.status_code == 409
+    assert resp.json()["error"]["code"] == "invalid_transition"
+
+
+async def test_validate_escalates_when_rule_fails_end_to_end(
+    client: AsyncClient, auth_headers: dict[str, str]
+) -> None:
+    create_resp = await client.post(
+        "/internal/incidents",
+        json={"trigger": "Checkout API returning 500s", "initial_evidence": ["500s in logs"]},
+        headers=auth_headers,
+    )
+    incident_id = create_resp.json()["id"]
+
+    with patch(
+        "app.orchestration.triage_workflow.call_triage_agent_with_retry",
+        AsyncMock(return_value=TRIAGE_RESULT),
+    ):
+        await client.post(f"/internal/incidents/{incident_id}/triage", headers=auth_headers)
+
+    with patch(
+        "app.orchestration.investigation_workflow.call_investigation_agent_with_retry",
+        AsyncMock(return_value=INVESTIGATION_RESULT),
+    ):
+        await client.post(f"/internal/incidents/{incident_id}/investigate", headers=auth_headers)
+
+    with patch(
+        "app.orchestration.diagnosis_workflow.call_diagnosis_agent_with_retry",
+        AsyncMock(return_value=LOW_CONFIDENCE_DIAGNOSIS_RESULT),
+    ):
+        await client.post(f"/internal/incidents/{incident_id}/diagnose", headers=auth_headers)
+
+    with patch(
+        "app.orchestration.remediation_workflow.call_remediation_agent_with_retry",
+        AsyncMock(return_value=NO_ACTION_NEEDED_REMEDIATION_RESULT),
+    ):
+        await client.post(f"/internal/incidents/{incident_id}/remediate", headers=auth_headers)
+
+    resp = await client.post(f"/internal/incidents/{incident_id}/validate", headers=auth_headers)
+
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["status"] == "escalated"
+    assert body["escalation_reason"] is not None
+    assert "Rule 6" in body["escalation_reason"]

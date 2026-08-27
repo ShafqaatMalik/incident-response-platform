@@ -12,6 +12,7 @@ from app.orchestration.diagnosis_workflow import run_diagnosis
 from app.orchestration.investigation_workflow import run_investigation
 from app.orchestration.remediation_workflow import run_remediation
 from app.orchestration.triage_workflow import run_triage
+from app.orchestration.validation_workflow import run_validation
 
 router = APIRouter(
     prefix="/internal/incidents", tags=["incidents"], dependencies=[Depends(require_api_key)]
@@ -107,3 +108,20 @@ async def remediate_incident(
             detail=f"Incident {incident_id} not found.",
         )
     return await run_remediation(incident, session, settings)
+
+
+@router.post("/{incident_id}/validate", response_model=IncidentResponse)
+@limiter.limit(rate_limit_value)
+async def validate_incident(
+    request: Request,
+    response: Response,
+    incident_id: uuid.UUID,
+    session: AsyncSession = Depends(get_db_session),
+) -> Incident:
+    incident = await session.get(Incident, incident_id)
+    if incident is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Incident {incident_id} not found.",
+        )
+    return await run_validation(incident, session)
