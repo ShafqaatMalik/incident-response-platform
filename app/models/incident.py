@@ -13,6 +13,7 @@ class IncidentStatus(StrEnum):
     DETECTED = "detected"
     TRIAGED = "triaged"
     INVESTIGATING = "investigating"
+    DIAGNOSED = "diagnosed"
     ESCALATED = "escalated"
 
 
@@ -49,3 +50,6 @@ class Incident(Base):
     deployment_correlation: Mapped[str | None] = mapped_column(Text, nullable=True)
     service_health_summary: Mapped[str | None] = mapped_column(Text, nullable=True)
     investigation_confidence: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    root_cause: Mapped[str | None] = mapped_column(Text, nullable=True)
+    alternative_explanations: Mapped[list[str] | None] = mapped_column(ARRAY(Text), nullable=True)
+    diagnosis_confidence: Mapped[str | None] = mapped_column(String(16), nullable=True)

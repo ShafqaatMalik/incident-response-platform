@@ -3,7 +3,8 @@ from app.models.incident import Incident, IncidentStatus
 ALLOWED_TRANSITIONS: dict[IncidentStatus, frozenset[IncidentStatus]] = {
     IncidentStatus.DETECTED: frozenset({IncidentStatus.TRIAGED, IncidentStatus.ESCALATED}),
     IncidentStatus.TRIAGED: frozenset({IncidentStatus.INVESTIGATING, IncidentStatus.ESCALATED}),
-    IncidentStatus.INVESTIGATING: frozenset(),
+    IncidentStatus.INVESTIGATING: frozenset({IncidentStatus.DIAGNOSED, IncidentStatus.ESCALATED}),
+    IncidentStatus.DIAGNOSED: frozenset(),
     IncidentStatus.ESCALATED: frozenset(),
 }
 

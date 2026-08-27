@@ -32,8 +32,20 @@ def test_triaged_to_escalated_is_allowed() -> None:
     assert incident.status == IncidentStatus.ESCALATED.value
 
 
-def test_investigating_has_no_outgoing_transitions() -> None:
+def test_investigating_to_diagnosed_is_allowed() -> None:
     incident = _incident(IncidentStatus.INVESTIGATING)
+    transition(incident, IncidentStatus.DIAGNOSED)
+    assert incident.status == IncidentStatus.DIAGNOSED.value
+
+
+def test_investigating_to_escalated_is_allowed() -> None:
+    incident = _incident(IncidentStatus.INVESTIGATING)
+    transition(incident, IncidentStatus.ESCALATED)
+    assert incident.status == IncidentStatus.ESCALATED.value
+
+
+def test_diagnosed_has_no_outgoing_transitions() -> None:
+    incident = _incident(IncidentStatus.DIAGNOSED)
     with pytest.raises(InvalidTransitionError):
         transition(incident, IncidentStatus.ESCALATED)
 

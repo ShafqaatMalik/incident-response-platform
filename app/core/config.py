@@ -13,6 +13,7 @@ class Settings(BaseSettings):
     environment: str = "development"
     triage_model: str = "claude-sonnet-5"
     investigation_model: str = "claude-sonnet-5"
+    diagnosis_model: str = "claude-sonnet-5"
 
 
 @lru_cache

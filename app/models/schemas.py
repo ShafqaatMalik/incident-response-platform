@@ -60,6 +60,9 @@ class IncidentResponse(BaseModel):
     deployment_correlation: str | None
     service_health_summary: str | None
     investigation_confidence: Confidence | None
+    root_cause: str | None
+    alternative_explanations: list[str] | None
+    diagnosis_confidence: Confidence | None
 
     model_config = {"from_attributes": True}
 
@@ -132,3 +135,33 @@ class InvestigationResult(BaseModel):
     service_health_summary: str = Field(min_length=1)
     confidence: Confidence
     evidence: list[str] = Field(min_length=1)
+
+
+class DiagnosisContext(BaseModel):
+    """Scoped agent input — incident's triage + investigation output, never
+    the full Incident row or its history."""
+
+    trigger: str
+    severity: Severity
+    affected_service: str
+    symptoms: list[str]
+    error_patterns: list[str]
+    deployment_correlation: str
+    service_health_summary: str
+    investigation_confidence: Confidence
+
+
+class DiagnosisResult(BaseModel):
+    """The Diagnosis Agent's validated output. Exactly ARCHITECTURE.md
+    §4/§5's Diagnosis Agent fields — no free-text remediation proposal
+    (that's the Remediation Agent's job). `evidence` (not
+    `supporting_evidence`) to match the merge-into-`incident.evidence`
+    convention already used by Triage's `initial_evidence` and
+    Investigation's `evidence`. Every field is required and non-empty: the
+    agent must state findings explicitly, e.g. "no plausible alternative
+    explanations found", rather than leaving a field ambiguously unset."""
+
+    root_cause: str = Field(min_length=1)
+    evidence: list[str] = Field(min_length=1)
+    confidence: Confidence
+    alternative_explanations: list[str] = Field(min_length=1)
