@@ -3,7 +3,7 @@ from datetime import datetime
 
 from pydantic import BaseModel, Field
 
-from app.models.incident import Confidence, IncidentStatus, Severity
+from app.models.incident import ActionType, Confidence, IncidentStatus, RiskLevel, Severity
 
 
 class DocumentCreate(BaseModel):
@@ -63,6 +63,10 @@ class IncidentResponse(BaseModel):
     root_cause: str | None
     alternative_explanations: list[str] | None
     diagnosis_confidence: Confidence | None
+    proposed_action_type: ActionType | None
+    action_risk_level: RiskLevel | None
+    action_justification: str | None
+    action_detail: str | None
 
     model_config = {"from_attributes": True}
 
@@ -165,3 +169,33 @@ class DiagnosisResult(BaseModel):
     evidence: list[str] = Field(min_length=1)
     confidence: Confidence
     alternative_explanations: list[str] = Field(min_length=1)
+
+
+class RemediationContext(BaseModel):
+    """Scoped agent input — incident + diagnosis output only, per
+    agent-rules.md (narrower than Diagnosis's own context, which carried
+    forward both Triage's and Investigation's output)."""
+
+    trigger: str
+    affected_service: str
+    root_cause: str
+    diagnosis_confidence: Confidence
+    evidence: list[str]
+
+
+class RemediationResult(BaseModel):
+    """The Remediation Agent's validated output. `action_type` must be one
+    of the six fixed ActionType values — the agent picks WHICH action
+    applies and describes it concretely, but never decides how risky that
+    action type is; risk level is a fixed code-level mapping applied by
+    the workflow (app/policies/remediation_policy.py), not a field here at
+    all. Every field required and non-empty, including for
+    no_action_needed/manual_investigation_required — the agent must still
+    justify the choice and describe what it means concretely (e.g. "no
+    corrective action needed: symptoms consistent with a resolved
+    transient spike" or "insufficient evidence to propose a specific
+    action; escalate to on-call for manual review")."""
+
+    action_type: ActionType
+    justification: str = Field(min_length=1)
+    action_detail: str = Field(min_length=1)

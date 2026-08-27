@@ -10,6 +10,7 @@ from app.models.incident import Incident, IncidentStatus
 from app.models.schemas import IncidentCreate, IncidentResponse
 from app.orchestration.diagnosis_workflow import run_diagnosis
 from app.orchestration.investigation_workflow import run_investigation
+from app.orchestration.remediation_workflow import run_remediation
 from app.orchestration.triage_workflow import run_triage
 
 router = APIRouter(
@@ -88,3 +89,21 @@ async def diagnose_incident(
             detail=f"Incident {incident_id} not found.",
         )
     return await run_diagnosis(incident, session, settings)
+
+
+@router.post("/{incident_id}/remediate", response_model=IncidentResponse)
+@limiter.limit(rate_limit_value)
+async def remediate_incident(
+    request: Request,
+    response: Response,
+    incident_id: uuid.UUID,
+    session: AsyncSession = Depends(get_db_session),
+    settings: Settings = Depends(get_settings),
+) -> Incident:
+    incident = await session.get(Incident, incident_id)
+    if incident is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Incident {incident_id} not found.",
+        )
+    return await run_remediation(incident, session, settings)

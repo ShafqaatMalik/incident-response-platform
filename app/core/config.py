@@ -14,6 +14,7 @@ class Settings(BaseSettings):
     triage_model: str = "claude-sonnet-5"
     investigation_model: str = "claude-sonnet-5"
     diagnosis_model: str = "claude-sonnet-5"
+    remediation_model: str = "claude-sonnet-5"
 
 
 @lru_cache

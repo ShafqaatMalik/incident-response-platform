@@ -24,8 +24,8 @@ def create_app() -> FastAPI:
         logger.warning(
             "ANTHROPIC_API_KEY/ANTHROPIC_AUTH_TOKEN not set — the app will still start "
             "(documents/health are unaffected), but any /internal/incidents/*/triage, "
-            "/internal/incidents/*/investigate, or /internal/incidents/*/diagnose call "
-            "will fail and escalate the incident."
+            "/internal/incidents/*/investigate, /internal/incidents/*/diagnose, or "
+            "/internal/incidents/*/remediate call will fail and escalate the incident."
         )
 
     app = FastAPI(title="Incident Response Platform — Document API", version="0.1.0")

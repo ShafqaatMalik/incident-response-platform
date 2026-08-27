@@ -2,7 +2,12 @@ from unittest.mock import AsyncMock, patch
 
 from httpx import AsyncClient
 
-from app.models.schemas import DiagnosisResult, InvestigationResult, TriageResult
+from app.models.schemas import (
+    DiagnosisResult,
+    InvestigationResult,
+    RemediationResult,
+    TriageResult,
+)
 
 TRIAGE_RESULT = TriageResult(
     severity="high",
@@ -24,6 +29,12 @@ DIAGNOSIS_RESULT = DiagnosisResult(
     evidence=["connection pool at 0 available connections"],
     confidence="high",
     alternative_explanations=["no plausible alternative explanations found"],
+)
+
+REMEDIATION_RESULT = RemediationResult(
+    action_type="restart_service",
+    justification="connection pool exhaustion clears on restart",
+    action_detail="restart checkout-api",
 )
 
 
@@ -327,6 +338,141 @@ async def test_diagnose_before_investigate_returns_409_not_500(
     ) as mock:
         resp = await client.post(
             f"/internal/incidents/{incident_id}/diagnose", headers=auth_headers
+        )
+
+    assert resp.status_code == 409
+    assert resp.json()["error"]["code"] == "invalid_transition"
+    mock.assert_not_called()
+
+
+async def test_remediate_missing_incident_returns_404(
+    client: AsyncClient, auth_headers: dict[str, str]
+) -> None:
+    resp = await client.post(
+        "/internal/incidents/00000000-0000-0000-0000-000000000000/remediate",
+        headers=auth_headers,
+    )
+    assert resp.status_code == 404
+    assert resp.json()["error"]["code"] == "not_found"
+
+
+async def test_remediate_happy_path_transitions_to_awaiting_approval(
+    client: AsyncClient, auth_headers: dict[str, str]
+) -> None:
+    create_resp = await client.post(
+        "/internal/incidents",
+        json={"trigger": "Checkout API returning 500s", "initial_evidence": ["500s in logs"]},
+        headers=auth_headers,
+    )
+    incident_id = create_resp.json()["id"]
+
+    with patch(
+        "app.orchestration.triage_workflow.call_triage_agent_with_retry",
+        AsyncMock(return_value=TRIAGE_RESULT),
+    ):
+        await client.post(f"/internal/incidents/{incident_id}/triage", headers=auth_headers)
+
+    with patch(
+        "app.orchestration.investigation_workflow.call_investigation_agent_with_retry",
+        AsyncMock(return_value=INVESTIGATION_RESULT),
+    ):
+        await client.post(f"/internal/incidents/{incident_id}/investigate", headers=auth_headers)
+
+    with patch(
+        "app.orchestration.diagnosis_workflow.call_diagnosis_agent_with_retry",
+        AsyncMock(return_value=DIAGNOSIS_RESULT),
+    ):
+        await client.post(f"/internal/incidents/{incident_id}/diagnose", headers=auth_headers)
+
+    with patch(
+        "app.orchestration.remediation_workflow.call_remediation_agent_with_retry",
+        AsyncMock(return_value=REMEDIATION_RESULT),
+    ):
+        resp = await client.post(
+            f"/internal/incidents/{incident_id}/remediate", headers=auth_headers
+        )
+
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["status"] == "awaiting_approval"
+    assert body["proposed_action_type"] == "restart_service"
+    assert body["action_risk_level"] == "medium"
+    assert body["action_justification"] == "connection pool exhaustion clears on restart"
+    assert body["action_detail"] == "restart checkout-api"
+
+
+async def test_remediate_twice_returns_409(
+    client: AsyncClient, auth_headers: dict[str, str]
+) -> None:
+    create_resp = await client.post(
+        "/internal/incidents",
+        json={"trigger": "Checkout API returning 500s"},
+        headers=auth_headers,
+    )
+    incident_id = create_resp.json()["id"]
+
+    with patch(
+        "app.orchestration.triage_workflow.call_triage_agent_with_retry",
+        AsyncMock(return_value=TRIAGE_RESULT),
+    ):
+        await client.post(f"/internal/incidents/{incident_id}/triage", headers=auth_headers)
+
+    with patch(
+        "app.orchestration.investigation_workflow.call_investigation_agent_with_retry",
+        AsyncMock(return_value=INVESTIGATION_RESULT),
+    ):
+        await client.post(f"/internal/incidents/{incident_id}/investigate", headers=auth_headers)
+
+    with patch(
+        "app.orchestration.diagnosis_workflow.call_diagnosis_agent_with_retry",
+        AsyncMock(return_value=DIAGNOSIS_RESULT),
+    ):
+        await client.post(f"/internal/incidents/{incident_id}/diagnose", headers=auth_headers)
+
+    with patch(
+        "app.orchestration.remediation_workflow.call_remediation_agent_with_retry",
+        AsyncMock(return_value=REMEDIATION_RESULT),
+    ):
+        first = await client.post(
+            f"/internal/incidents/{incident_id}/remediate", headers=auth_headers
+        )
+        assert first.status_code == 200
+
+        second = await client.post(
+            f"/internal/incidents/{incident_id}/remediate", headers=auth_headers
+        )
+    assert second.status_code == 409
+    assert second.json()["error"]["code"] == "invalid_transition"
+
+
+async def test_remediate_before_diagnose_returns_409_not_500(
+    client: AsyncClient, auth_headers: dict[str, str]
+) -> None:
+    create_resp = await client.post(
+        "/internal/incidents",
+        json={"trigger": "Checkout API returning 500s"},
+        headers=auth_headers,
+    )
+    incident_id = create_resp.json()["id"]
+
+    with patch(
+        "app.orchestration.triage_workflow.call_triage_agent_with_retry",
+        AsyncMock(return_value=TRIAGE_RESULT),
+    ):
+        await client.post(f"/internal/incidents/{incident_id}/triage", headers=auth_headers)
+
+    with patch(
+        "app.orchestration.investigation_workflow.call_investigation_agent_with_retry",
+        AsyncMock(return_value=INVESTIGATION_RESULT),
+    ):
+        await client.post(f"/internal/incidents/{incident_id}/investigate", headers=auth_headers)
+
+    with patch(
+        "app.orchestration.remediation_workflow.call_remediation_agent_with_retry",
+        AsyncMock(),
+    ) as mock:
+        resp = await client.post(
+            f"/internal/incidents/{incident_id}/remediate", headers=auth_headers
         )
 
     assert resp.status_code == 409

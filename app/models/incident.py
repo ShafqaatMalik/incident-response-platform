@@ -14,6 +14,7 @@ class IncidentStatus(StrEnum):
     TRIAGED = "triaged"
     INVESTIGATING = "investigating"
     DIAGNOSED = "diagnosed"
+    AWAITING_APPROVAL = "awaiting_approval"
     ESCALATED = "escalated"
 
 
@@ -25,6 +26,22 @@ class Severity(StrEnum):
 
 
 class Confidence(StrEnum):
+    LOW = "low"
+    MEDIUM = "medium"
+    HIGH = "high"
+
+
+class ActionType(StrEnum):
+    RESTART_SERVICE = "restart_service"
+    ROLLBACK_DEPLOYMENT = "rollback_deployment"
+    SCALE_UP = "scale_up"
+    DISABLE_TRAFFIC = "disable_traffic"
+    NO_ACTION_NEEDED = "no_action_needed"
+    MANUAL_INVESTIGATION_REQUIRED = "manual_investigation_required"
+
+
+class RiskLevel(StrEnum):
+    NONE = "none"
     LOW = "low"
     MEDIUM = "medium"
     HIGH = "high"
@@ -53,3 +70,7 @@ class Incident(Base):
     root_cause: Mapped[str | None] = mapped_column(Text, nullable=True)
     alternative_explanations: Mapped[list[str] | None] = mapped_column(ARRAY(Text), nullable=True)
     diagnosis_confidence: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    proposed_action_type: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    action_risk_level: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    action_justification: Mapped[str | None] = mapped_column(Text, nullable=True)
+    action_detail: Mapped[str | None] = mapped_column(Text, nullable=True)
