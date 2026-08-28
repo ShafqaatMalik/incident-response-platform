@@ -68,10 +68,34 @@ def test_validating_to_escalated_is_allowed() -> None:
     assert incident.status == IncidentStatus.ESCALATED.value
 
 
+def test_awaiting_approval_to_approved_is_allowed() -> None:
+    incident = _incident(IncidentStatus.AWAITING_APPROVAL)
+    transition(incident, IncidentStatus.APPROVED)
+    assert incident.status == IncidentStatus.APPROVED.value
+
+
+def test_awaiting_approval_to_rejected_is_allowed() -> None:
+    incident = _incident(IncidentStatus.AWAITING_APPROVAL)
+    transition(incident, IncidentStatus.REJECTED)
+    assert incident.status == IncidentStatus.REJECTED.value
+
+
 def test_awaiting_approval_has_no_outgoing_transitions() -> None:
     incident = _incident(IncidentStatus.AWAITING_APPROVAL)
     with pytest.raises(InvalidTransitionError):
         transition(incident, IncidentStatus.ESCALATED)
+
+
+def test_approved_has_no_outgoing_transitions() -> None:
+    incident = _incident(IncidentStatus.APPROVED)
+    with pytest.raises(InvalidTransitionError):
+        transition(incident, IncidentStatus.REJECTED)
+
+
+def test_rejected_has_no_outgoing_transitions() -> None:
+    incident = _incident(IncidentStatus.REJECTED)
+    with pytest.raises(InvalidTransitionError):
+        transition(incident, IncidentStatus.APPROVED)
 
 
 def test_escalated_has_no_outgoing_transitions() -> None:

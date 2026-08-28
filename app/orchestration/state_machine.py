@@ -8,7 +8,9 @@ ALLOWED_TRANSITIONS: dict[IncidentStatus, frozenset[IncidentStatus]] = {
     IncidentStatus.VALIDATING: frozenset(
         {IncidentStatus.AWAITING_APPROVAL, IncidentStatus.ESCALATED}
     ),
-    IncidentStatus.AWAITING_APPROVAL: frozenset(),
+    IncidentStatus.AWAITING_APPROVAL: frozenset({IncidentStatus.APPROVED, IncidentStatus.REJECTED}),
+    IncidentStatus.APPROVED: frozenset(),
+    IncidentStatus.REJECTED: frozenset(),
     IncidentStatus.ESCALATED: frozenset(),
 }
 

@@ -7,7 +7,13 @@ from app.api.deps import get_db_session, require_api_key
 from app.core.config import Settings, get_settings
 from app.core.rate_limit import limiter, rate_limit_value
 from app.models.incident import Incident, IncidentStatus
-from app.models.schemas import IncidentCreate, IncidentResponse
+from app.models.schemas import (
+    ApprovalRequest,
+    IncidentCreate,
+    IncidentResponse,
+    RejectionRequest,
+)
+from app.orchestration.approval_workflow import run_approval, run_rejection
 from app.orchestration.diagnosis_workflow import run_diagnosis
 from app.orchestration.investigation_workflow import run_investigation
 from app.orchestration.remediation_workflow import run_remediation
@@ -125,3 +131,39 @@ async def validate_incident(
             detail=f"Incident {incident_id} not found.",
         )
     return await run_validation(incident, session)
+
+
+@router.post("/{incident_id}/approve", response_model=IncidentResponse)
+@limiter.limit(rate_limit_value)
+async def approve_incident(
+    request: Request,
+    response: Response,
+    incident_id: uuid.UUID,
+    payload: ApprovalRequest,
+    session: AsyncSession = Depends(get_db_session),
+) -> Incident:
+    incident = await session.get(Incident, incident_id)
+    if incident is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Incident {incident_id} not found.",
+        )
+    return await run_approval(incident, payload.approved_by, session)
+
+
+@router.post("/{incident_id}/reject", response_model=IncidentResponse)
+@limiter.limit(rate_limit_value)
+async def reject_incident(
+    request: Request,
+    response: Response,
+    incident_id: uuid.UUID,
+    payload: RejectionRequest,
+    session: AsyncSession = Depends(get_db_session),
+) -> Incident:
+    incident = await session.get(Incident, incident_id)
+    if incident is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Incident {incident_id} not found.",
+        )
+    return await run_rejection(incident, payload.rejected_by, payload.rejection_reason, session)

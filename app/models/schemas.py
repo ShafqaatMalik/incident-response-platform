@@ -67,6 +67,11 @@ class IncidentResponse(BaseModel):
     action_risk_level: RiskLevel | None
     action_justification: str | None
     action_detail: str | None
+    approved_by: str | None
+    approved_at: datetime | None
+    rejected_by: str | None
+    rejected_at: datetime | None
+    rejection_reason: str | None
 
     model_config = {"from_attributes": True}
 
@@ -199,3 +204,12 @@ class RemediationResult(BaseModel):
     action_type: ActionType
     justification: str = Field(min_length=1)
     action_detail: str = Field(min_length=1)
+
+
+class ApprovalRequest(BaseModel):
+    approved_by: str = Field(min_length=1, max_length=255)
+
+
+class RejectionRequest(BaseModel):
+    rejected_by: str = Field(min_length=1, max_length=255)
+    rejection_reason: str = Field(min_length=1, max_length=2000)

@@ -16,6 +16,8 @@ class IncidentStatus(StrEnum):
     DIAGNOSED = "diagnosed"
     VALIDATING = "validating"
     AWAITING_APPROVAL = "awaiting_approval"
+    APPROVED = "approved"
+    REJECTED = "rejected"
     ESCALATED = "escalated"
 
 
@@ -75,3 +77,8 @@ class Incident(Base):
     action_risk_level: Mapped[str | None] = mapped_column(String(16), nullable=True)
     action_justification: Mapped[str | None] = mapped_column(Text, nullable=True)
     action_detail: Mapped[str | None] = mapped_column(Text, nullable=True)
+    approved_by: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    approved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    rejected_by: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    rejected_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    rejection_reason: Mapped[str | None] = mapped_column(Text, nullable=True)

@@ -8,7 +8,12 @@ executes. Full design: `ARCHITECTURE.md`. Day-to-day log: `STATUS.md`.
 ## Current phase
 
 Step 3 of the Build Order (`ARCHITECTURE.md` §20) is **done**: all four
-agents plus the Validator now exist.
+agents plus the Validator now exist. Step 4 (production controls —
+"Pydantic validation, guardrails, permissions, retries, fallbacks, human
+approval" per §20) is **in progress**: human approval is done; the
+retry/fallback policy work (the still-deferred retry-wrapper refactor)
+is not. Failure injection and real execution of an approved action are
+step 5 ("Deploy"), not step 4 — not started.
 
 - Done: step 1 (service & architecture) and step 2 (non-AI FastAPI
   foundation — auth, rate limiting, logging, metrics, Docker, tests,
@@ -32,10 +37,20 @@ agents plus the Validator now exist.
   `/internal/incidents/{id}/validate`, full test pyramid (no evaluation
   tier — no LLM call to evaluate). No new migration — reads only fields
   already on `Incident`. All four agents + the Validator now exist.
-- Next: step 4 (production controls) — not started yet, confirm scope
-  before beginning.
+- Done: human approval — `AWAITING_APPROVAL` → `APPROVED`/`REJECTED`
+  (both terminal for now, no execution yet) — `app/orchestration/
+  approval_workflow.py`, `/internal/incidents/{id}/approve` (needs
+  `approved_by`), `/internal/incidents/{id}/reject` (needs `rejected_by`
+  + non-empty `rejection_reason`, 422 if missing), full test pyramid (no
+  evaluation tier — no LLM call). Migration `0006` adds `approved_by`,
+  `approved_at`, `rejected_by`, `rejected_at`, `rejection_reason`.
+- Next: rest of step 4 (production controls) — retry/fallback policy
+  for agent LLM calls, and the cost/budget circuit breaker mentioned in
+  `agent-rules.md`, are still open. Confirm scope before beginning.
 
-Don't jump ahead to step 5 (deploy) or later steps until step 4 is done.
+Don't jump ahead to step 5 (deploy — includes real execution of an
+approved action and failure injection) or later steps until step 4 is
+done.
 
 ## Rules
 

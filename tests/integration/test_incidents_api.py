@@ -663,3 +663,221 @@ async def test_validate_escalates_when_rule_fails_end_to_end(
     assert body["status"] == "escalated"
     assert body["escalation_reason"] is not None
     assert "Rule 6" in body["escalation_reason"]
+
+
+async def _create_awaiting_approval_incident(
+    client: AsyncClient, auth_headers: dict[str, str]
+) -> str:
+    create_resp = await client.post(
+        "/internal/incidents",
+        json={"trigger": "Checkout API returning 500s", "initial_evidence": ["500s in logs"]},
+        headers=auth_headers,
+    )
+    incident_id: str = create_resp.json()["id"]
+
+    with patch(
+        "app.orchestration.triage_workflow.call_triage_agent_with_retry",
+        AsyncMock(return_value=TRIAGE_RESULT),
+    ):
+        await client.post(f"/internal/incidents/{incident_id}/triage", headers=auth_headers)
+
+    with patch(
+        "app.orchestration.investigation_workflow.call_investigation_agent_with_retry",
+        AsyncMock(return_value=INVESTIGATION_RESULT),
+    ):
+        await client.post(f"/internal/incidents/{incident_id}/investigate", headers=auth_headers)
+
+    with patch(
+        "app.orchestration.diagnosis_workflow.call_diagnosis_agent_with_retry",
+        AsyncMock(return_value=DIAGNOSIS_RESULT),
+    ):
+        await client.post(f"/internal/incidents/{incident_id}/diagnose", headers=auth_headers)
+
+    with patch(
+        "app.orchestration.remediation_workflow.call_remediation_agent_with_retry",
+        AsyncMock(return_value=REMEDIATION_RESULT),
+    ):
+        await client.post(f"/internal/incidents/{incident_id}/remediate", headers=auth_headers)
+
+    await client.post(f"/internal/incidents/{incident_id}/validate", headers=auth_headers)
+
+    return incident_id
+
+
+async def test_approve_missing_incident_returns_404(
+    client: AsyncClient, auth_headers: dict[str, str]
+) -> None:
+    resp = await client.post(
+        "/internal/incidents/00000000-0000-0000-0000-000000000000/approve",
+        json={"approved_by": "on-call-engineer"},
+        headers=auth_headers,
+    )
+    assert resp.status_code == 404
+    assert resp.json()["error"]["code"] == "not_found"
+
+
+async def test_approve_happy_path_transitions_to_approved(
+    client: AsyncClient, auth_headers: dict[str, str]
+) -> None:
+    incident_id = await _create_awaiting_approval_incident(client, auth_headers)
+
+    resp = await client.post(
+        f"/internal/incidents/{incident_id}/approve",
+        json={"approved_by": "on-call-engineer"},
+        headers=auth_headers,
+    )
+
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["status"] == "approved"
+    assert body["approved_by"] == "on-call-engineer"
+    assert body["approved_at"] is not None
+
+
+async def test_approve_requires_approved_by(
+    client: AsyncClient, auth_headers: dict[str, str]
+) -> None:
+    incident_id = await _create_awaiting_approval_incident(client, auth_headers)
+
+    resp = await client.post(
+        f"/internal/incidents/{incident_id}/approve",
+        json={},
+        headers=auth_headers,
+    )
+    assert resp.status_code == 422
+
+
+async def test_approve_before_validate_returns_409_not_500(
+    client: AsyncClient, auth_headers: dict[str, str]
+) -> None:
+    create_resp = await client.post(
+        "/internal/incidents",
+        json={"trigger": "Checkout API returning 500s"},
+        headers=auth_headers,
+    )
+    incident_id = create_resp.json()["id"]
+
+    resp = await client.post(
+        f"/internal/incidents/{incident_id}/approve",
+        json={"approved_by": "on-call-engineer"},
+        headers=auth_headers,
+    )
+
+    assert resp.status_code == 409
+    assert resp.json()["error"]["code"] == "invalid_transition"
+
+
+async def test_approve_twice_returns_409(client: AsyncClient, auth_headers: dict[str, str]) -> None:
+    incident_id = await _create_awaiting_approval_incident(client, auth_headers)
+
+    first = await client.post(
+        f"/internal/incidents/{incident_id}/approve",
+        json={"approved_by": "on-call-engineer"},
+        headers=auth_headers,
+    )
+    assert first.status_code == 200
+
+    second = await client.post(
+        f"/internal/incidents/{incident_id}/approve",
+        json={"approved_by": "on-call-engineer"},
+        headers=auth_headers,
+    )
+    assert second.status_code == 409
+    assert second.json()["error"]["code"] == "invalid_transition"
+
+
+async def test_reject_missing_incident_returns_404(
+    client: AsyncClient, auth_headers: dict[str, str]
+) -> None:
+    resp = await client.post(
+        "/internal/incidents/00000000-0000-0000-0000-000000000000/reject",
+        json={"rejected_by": "on-call-engineer", "rejection_reason": "not safe"},
+        headers=auth_headers,
+    )
+    assert resp.status_code == 404
+    assert resp.json()["error"]["code"] == "not_found"
+
+
+async def test_reject_happy_path_transitions_to_rejected(
+    client: AsyncClient, auth_headers: dict[str, str]
+) -> None:
+    incident_id = await _create_awaiting_approval_incident(client, auth_headers)
+
+    resp = await client.post(
+        f"/internal/incidents/{incident_id}/reject",
+        json={"rejected_by": "on-call-engineer", "rejection_reason": "not safe to run right now"},
+        headers=auth_headers,
+    )
+
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["status"] == "rejected"
+    assert body["rejected_by"] == "on-call-engineer"
+    assert body["rejected_at"] is not None
+    assert body["rejection_reason"] == "not safe to run right now"
+
+
+async def test_reject_requires_rejection_reason(
+    client: AsyncClient, auth_headers: dict[str, str]
+) -> None:
+    incident_id = await _create_awaiting_approval_incident(client, auth_headers)
+
+    resp = await client.post(
+        f"/internal/incidents/{incident_id}/reject",
+        json={"rejected_by": "on-call-engineer"},
+        headers=auth_headers,
+    )
+    assert resp.status_code == 422
+
+
+async def test_reject_rejects_empty_rejection_reason(
+    client: AsyncClient, auth_headers: dict[str, str]
+) -> None:
+    incident_id = await _create_awaiting_approval_incident(client, auth_headers)
+
+    resp = await client.post(
+        f"/internal/incidents/{incident_id}/reject",
+        json={"rejected_by": "on-call-engineer", "rejection_reason": ""},
+        headers=auth_headers,
+    )
+    assert resp.status_code == 422
+
+
+async def test_reject_twice_returns_409(client: AsyncClient, auth_headers: dict[str, str]) -> None:
+    incident_id = await _create_awaiting_approval_incident(client, auth_headers)
+
+    first = await client.post(
+        f"/internal/incidents/{incident_id}/reject",
+        json={"rejected_by": "on-call-engineer", "rejection_reason": "not safe"},
+        headers=auth_headers,
+    )
+    assert first.status_code == 200
+
+    second = await client.post(
+        f"/internal/incidents/{incident_id}/reject",
+        json={"rejected_by": "on-call-engineer", "rejection_reason": "not safe"},
+        headers=auth_headers,
+    )
+    assert second.status_code == 409
+    assert second.json()["error"]["code"] == "invalid_transition"
+
+
+async def test_cannot_reject_after_approve_returns_409(
+    client: AsyncClient, auth_headers: dict[str, str]
+) -> None:
+    incident_id = await _create_awaiting_approval_incident(client, auth_headers)
+
+    approve_resp = await client.post(
+        f"/internal/incidents/{incident_id}/approve",
+        json={"approved_by": "on-call-engineer"},
+        headers=auth_headers,
+    )
+    assert approve_resp.status_code == 200
+
+    reject_resp = await client.post(
+        f"/internal/incidents/{incident_id}/reject",
+        json={"rejected_by": "on-call-engineer", "rejection_reason": "changed my mind"},
+        headers=auth_headers,
+    )
+    assert reject_resp.status_code == 409
+    assert reject_resp.json()["error"]["code"] == "invalid_transition"
