@@ -10,10 +10,13 @@ executes. Full design: `ARCHITECTURE.md`. Day-to-day log: `STATUS.md`.
 Step 3 of the Build Order (`ARCHITECTURE.md` §20) is **done**: all four
 agents plus the Validator now exist. Step 4 (production controls —
 "Pydantic validation, guardrails, permissions, retries, fallbacks, human
-approval" per §20) is **in progress**: human approval is done; the
-retry/fallback policy work (the still-deferred retry-wrapper refactor)
-is not. Failure injection and real execution of an approved action are
-step 5 ("Deploy"), not step 4 — not started.
+approval" per §20) is **done**: human approval, the budget circuit
+breaker (§7), and the decision to skip the fallback-model feature (logged
+in `STATUS.md`) are all in place. The still-deferred agent retry-wrapper
+refactor and the `get_incident_or_404`/budget-check-duplication refactors
+are flagged cleanup opportunities, not blockers. Failure injection and
+real execution of an approved action are step 5 ("Deploy"), not step 4 —
+not started; confirm scope before beginning step 5.
 
 - Done: step 1 (service & architecture) and step 2 (non-AI FastAPI
   foundation — auth, rate limiting, logging, metrics, Docker, tests,
@@ -44,13 +47,24 @@ step 5 ("Deploy"), not step 4 — not started.
   + non-empty `rejection_reason`, 422 if missing), full test pyramid (no
   evaluation tier — no LLM call). Migration `0006` adds `approved_by`,
   `approved_at`, `rejected_by`, `rejected_at`, `rejection_reason`.
-- Next: rest of step 4 (production controls) — retry/fallback policy
-  for agent LLM calls, and the cost/budget circuit breaker mentioned in
-  `agent-rules.md`, are still open. Confirm scope before beginning.
+- Done: the budget circuit breaker — daily AI spend tracked in a new
+  `daily_spend` table (migration `0007`), a fixed per-model pricing
+  table (`app/policies/pricing_policy.py`, verified against Anthropic's
+  published pricing), and a DB-backed check (`app/policies/
+  budget_policy.py`) that blocks `/triage`, `/investigate`, `/diagnose`,
+  `/remediate` with `429 budget_exceeded` once today's spend reaches
+  `daily_budget_limit_usd` (default $2.00, configurable via `.env`).
+  Incident creation and the Validator/approve/reject endpoints are
+  unaffected — they make no AI call. Spend is recorded inside each
+  agent's retry logic (every attempt, success or failure); the block
+  check lives in the workflow layer instead, to keep the four agents'
+  existing DB-free unit tests DB-free. Full test pyramid (no evaluation
+  tier — no live LLM call).
+- Next: step 5 ("Deploy") is the next Build Order step — Cloud Run,
+  real/synthetic traffic, monitoring, failure injection, and real
+  execution of an approved action. Not started; confirm scope first.
 
-Don't jump ahead to step 5 (deploy — includes real execution of an
-approved action and failure injection) or later steps until step 4 is
-done.
+Don't jump ahead to step 5 or later steps without confirming scope first.
 
 ## Rules
 

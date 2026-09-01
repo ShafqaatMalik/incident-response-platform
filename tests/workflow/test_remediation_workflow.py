@@ -1,13 +1,17 @@
-from unittest.mock import AsyncMock, patch
+from types import SimpleNamespace
+from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agents.remediation import RemediationFailedError
 from app.core.config import get_settings
+from app.models.daily_spend import DailySpend
 from app.models.incident import ActionType, Incident, IncidentStatus
 from app.models.schemas import RemediationResult
 from app.orchestration.remediation_workflow import run_remediation
+from app.policies.pricing_policy import calculate_cost
 from app.policies.remediation_policy import ACTION_RISK_LEVELS
 
 REMEDIATION_RESULT = RemediationResult(
@@ -92,3 +96,23 @@ async def test_stored_risk_level_always_matches_the_fixed_policy_mapping(
 
     assert result.proposed_action_type == action_type.value
     assert result.action_risk_level == ACTION_RISK_LEVELS[action_type].value
+
+
+async def test_spend_is_recorded_after_a_successful_call(db_session: AsyncSession) -> None:
+    incident = _diagnosed_incident()
+    db_session.add(incident)
+    await db_session.commit()
+
+    response = SimpleNamespace(
+        parsed_output=REMEDIATION_RESULT,
+        usage=SimpleNamespace(input_tokens=1000, output_tokens=200),
+    )
+    fake_client = Mock()
+    fake_client.messages.parse = AsyncMock(return_value=response)
+    with patch("app.agents.remediation.get_anthropic_client", return_value=fake_client):
+        result = await run_remediation(incident, db_session, get_settings())
+
+    assert result.status == IncidentStatus.VALIDATING.value
+
+    spend = (await db_session.execute(select(DailySpend.total_cost_usd))).scalar_one()
+    assert spend == calculate_cost("claude-sonnet-5", 1000, 200)

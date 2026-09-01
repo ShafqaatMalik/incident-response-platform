@@ -1,7 +1,9 @@
 from unittest.mock import AsyncMock, patch
 
+import pytest
 from httpx import AsyncClient
 
+from app.core.config import get_settings
 from app.models.schemas import (
     DiagnosisResult,
     InvestigationResult,
@@ -881,3 +883,73 @@ async def test_cannot_reject_after_approve_returns_409(
     )
     assert reject_resp.status_code == 409
     assert reject_resp.json()["error"]["code"] == "invalid_transition"
+
+
+async def test_triage_blocked_with_429_when_daily_budget_exceeded(
+    client: AsyncClient, auth_headers: dict[str, str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    create_resp = await client.post(
+        "/internal/incidents",
+        json={"trigger": "Checkout API returning 500s", "initial_evidence": ["500s in logs"]},
+        headers=auth_headers,
+    )
+    incident_id = create_resp.json()["id"]
+
+    monkeypatch.setenv("DAILY_BUDGET_LIMIT_USD", "0")
+    get_settings.cache_clear()
+    try:
+        resp = await client.post(f"/internal/incidents/{incident_id}/triage", headers=auth_headers)
+    finally:
+        get_settings.cache_clear()
+
+    assert resp.status_code == 429
+    body = resp.json()
+    assert body["error"]["code"] == "budget_exceeded"
+    assert "daily ai budget exceeded" in body["error"]["message"].lower()
+
+
+@pytest.mark.parametrize("endpoint", ["investigate", "diagnose", "remediate"])
+async def test_other_ai_endpoints_blocked_with_429_when_daily_budget_exceeded(
+    client: AsyncClient,
+    auth_headers: dict[str, str],
+    monkeypatch: pytest.MonkeyPatch,
+    endpoint: str,
+) -> None:
+    create_resp = await client.post(
+        "/internal/incidents",
+        json={"trigger": "Checkout API returning 500s", "initial_evidence": ["500s in logs"]},
+        headers=auth_headers,
+    )
+    incident_id = create_resp.json()["id"]
+
+    monkeypatch.setenv("DAILY_BUDGET_LIMIT_USD", "0")
+    get_settings.cache_clear()
+    try:
+        resp = await client.post(
+            f"/internal/incidents/{incident_id}/{endpoint}", headers=auth_headers
+        )
+    finally:
+        get_settings.cache_clear()
+
+    # Blocked before any state guard runs, regardless of the incident's actual
+    # status (still `detected` here) -- the budget check is the very first
+    # line of every one of these workflows.
+    assert resp.status_code == 429
+    assert resp.json()["error"]["code"] == "budget_exceeded"
+
+
+async def test_incident_creation_still_works_when_daily_budget_exceeded(
+    client: AsyncClient, auth_headers: dict[str, str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("DAILY_BUDGET_LIMIT_USD", "0")
+    get_settings.cache_clear()
+    try:
+        resp = await client.post(
+            "/internal/incidents",
+            json={"trigger": "Checkout API returning 500s", "initial_evidence": ["500s in logs"]},
+            headers=auth_headers,
+        )
+    finally:
+        get_settings.cache_clear()
+
+    assert resp.status_code == 201

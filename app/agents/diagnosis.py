@@ -1,9 +1,11 @@
 import anthropic
 from pydantic import ValidationError
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.anthropic_client import get_anthropic_client
 from app.models.incident import Confidence, Incident, Severity
 from app.models.schemas import DiagnosisContext, DiagnosisResult
+from app.policies.budget_policy import record_spend
 
 DIAGNOSIS_SYSTEM_PROMPT = """\
 You are the Diagnosis Agent in an AI incident response system.
@@ -64,7 +66,7 @@ class DiagnosisFailedError(Exception):
 
 
 async def _request_diagnosis(
-    context: DiagnosisContext, model: str, *, repair_note: str | None = None
+    context: DiagnosisContext, model: str, session: AsyncSession, *, repair_note: str | None = None
 ) -> DiagnosisResult:
     client = get_anthropic_client()
     prompt = context.model_dump_json()
@@ -85,12 +87,16 @@ async def _request_diagnosis(
         # here as a bare TypeError, not an AnthropicError subclass.
         raise anthropic.AnthropicError(str(exc)) from exc
 
+    await record_spend(session, model, response.usage.input_tokens, response.usage.output_tokens)
+
     if response.parsed_output is None:
         raise ValidationError.from_exception_data("DiagnosisResult", [])
     return response.parsed_output
 
 
-async def call_diagnosis_agent_with_retry(context: DiagnosisContext, model: str) -> DiagnosisResult:
+async def call_diagnosis_agent_with_retry(
+    context: DiagnosisContext, model: str, session: AsyncSession
+) -> DiagnosisResult:
     """Exactly one retry/repair attempt, then escalate — per agent-rules.md.
 
     Catches anthropic.AnthropicError (the SDK's base exception, covering
@@ -99,10 +105,10 @@ async def call_diagnosis_agent_with_retry(context: DiagnosisContext, model: str)
     too) and pydantic.ValidationError (invalid output shape).
     """
     try:
-        return await _request_diagnosis(context, model)
+        return await _request_diagnosis(context, model, session)
     except (anthropic.AnthropicError, ValidationError) as first_exc:
         try:
-            return await _request_diagnosis(context, model, repair_note=str(first_exc))
+            return await _request_diagnosis(context, model, session, repair_note=str(first_exc))
         except (anthropic.AnthropicError, ValidationError) as second_exc:
             raise DiagnosisFailedError(
                 f"Diagnosis failed after retry: {second_exc}"

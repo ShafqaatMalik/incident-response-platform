@@ -9,9 +9,13 @@ from app.core.config import Settings
 from app.models.incident import Confidence, Incident, IncidentStatus, Severity
 from app.orchestration.evidence import dedupe_evidence
 from app.orchestration.state_machine import transition, validate_transition
+from app.policies.budget_policy import BudgetExceededError, is_budget_exceeded
 
 
 async def run_diagnosis(incident: Incident, session: AsyncSession, settings: Settings) -> Incident:
+    if await is_budget_exceeded(session, settings.daily_budget_limit_usd):
+        raise BudgetExceededError("Daily AI budget exceeded.")
+
     # Guard before touching any Triage/Investigation-output field: those
     # columns are only guaranteed non-null once status == INVESTIGATING.
     # Checking this first — rather than letting a bad call crash while
@@ -45,7 +49,7 @@ async def run_diagnosis(incident: Incident, session: AsyncSession, settings: Set
     )
 
     try:
-        result = await call_diagnosis_agent_with_retry(context, settings.diagnosis_model)
+        result = await call_diagnosis_agent_with_retry(context, settings.diagnosis_model, session)
     except DiagnosisFailedError as exc:
         transition(incident, IncidentStatus.ESCALATED)
         incident.escalation_reason = str(exc)

@@ -7,6 +7,7 @@ from slowapi.errors import RateLimitExceeded
 
 from app.observability.logging import get_request_id
 from app.orchestration.state_machine import InvalidTransitionError
+from app.policies.budget_policy import BudgetExceededError
 
 logger = logging.getLogger(__name__)
 
@@ -60,6 +61,14 @@ def register_exception_handlers(app: FastAPI) -> None:
         return _error_response(
             status.HTTP_409_CONFLICT,
             "invalid_transition",
+            str(exc),
+        )
+
+    @app.exception_handler(BudgetExceededError)
+    async def budget_exceeded_handler(request: Request, exc: BudgetExceededError) -> JSONResponse:
+        return _error_response(
+            status.HTTP_429_TOO_MANY_REQUESTS,
+            "budget_exceeded",
             str(exc),
         )
 

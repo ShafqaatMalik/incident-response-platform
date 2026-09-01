@@ -15,6 +15,7 @@ class Settings(BaseSettings):
     investigation_model: str = "claude-sonnet-5"
     diagnosis_model: str = "claude-sonnet-5"
     remediation_model: str = "claude-sonnet-5"
+    daily_budget_limit_usd: float = 2.00
 
 
 @lru_cache

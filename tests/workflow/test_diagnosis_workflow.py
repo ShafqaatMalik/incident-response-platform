@@ -1,12 +1,16 @@
-from unittest.mock import AsyncMock, patch
+from types import SimpleNamespace
+from unittest.mock import AsyncMock, Mock, patch
 
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agents.diagnosis import DiagnosisFailedError
 from app.core.config import get_settings
+from app.models.daily_spend import DailySpend
 from app.models.incident import Incident, IncidentStatus
 from app.models.schemas import DiagnosisResult
 from app.orchestration.diagnosis_workflow import run_diagnosis
+from app.policies.pricing_policy import calculate_cost
 
 DIAGNOSIS_RESULT = DiagnosisResult(
     root_cause="database connection pool exhaustion from a recent deploy",
@@ -91,3 +95,23 @@ async def test_evidence_dedupe_preserves_order(db_session: AsyncSession) -> None
         result = await run_diagnosis(incident, db_session, get_settings())
 
     assert result.evidence == ["500s in logs", "new evidence"]
+
+
+async def test_spend_is_recorded_after_a_successful_call(db_session: AsyncSession) -> None:
+    incident = _investigating_incident()
+    db_session.add(incident)
+    await db_session.commit()
+
+    response = SimpleNamespace(
+        parsed_output=DIAGNOSIS_RESULT,
+        usage=SimpleNamespace(input_tokens=1000, output_tokens=200),
+    )
+    fake_client = Mock()
+    fake_client.messages.parse = AsyncMock(return_value=response)
+    with patch("app.agents.diagnosis.get_anthropic_client", return_value=fake_client):
+        result = await run_diagnosis(incident, db_session, get_settings())
+
+    assert result.status == IncidentStatus.DIAGNOSED.value
+
+    spend = (await db_session.execute(select(DailySpend.total_cost_usd))).scalar_one()
+    assert spend == calculate_cost("claude-sonnet-5", 1000, 200)

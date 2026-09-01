@@ -11,6 +11,7 @@ from app.core.config import Settings
 from app.models.incident import Incident, IncidentStatus, Severity
 from app.orchestration.evidence import dedupe_evidence
 from app.orchestration.state_machine import transition, validate_transition
+from app.policies.budget_policy import BudgetExceededError, is_budget_exceeded
 from app.tools.deployments import get_deployment_history
 from app.tools.logs import get_recent_logs
 from app.tools.metrics import get_service_metrics
@@ -19,6 +20,9 @@ from app.tools.metrics import get_service_metrics
 async def run_investigation(
     incident: Incident, session: AsyncSession, settings: Settings
 ) -> Incident:
+    if await is_budget_exceeded(session, settings.daily_budget_limit_usd):
+        raise BudgetExceededError("Daily AI budget exceeded.")
+
     # Guard before touching any Triage-output field or calling tools/the agent:
     # unlike Triage (whose inputs are non-nullable columns present regardless of
     # status), Investigation's context depends on fields that are only
@@ -41,7 +45,9 @@ async def run_investigation(
     )
 
     try:
-        result = await call_investigation_agent_with_retry(context, settings.investigation_model)
+        result = await call_investigation_agent_with_retry(
+            context, settings.investigation_model, session
+        )
     except InvestigationFailedError as exc:
         transition(incident, IncidentStatus.ESCALATED)
         incident.escalation_reason = str(exc)

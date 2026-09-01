@@ -1,10 +1,12 @@
 import anthropic
 from pydantic import ValidationError
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.anthropic_client import get_anthropic_client
 from app.core.config import Settings
 from app.models.incident import Incident
 from app.models.schemas import TriageContext, TriageResult
+from app.policies.budget_policy import record_spend
 
 TRIAGE_SYSTEM_PROMPT = """\
 You are the Triage Agent in an AI incident response system.
@@ -38,7 +40,7 @@ class TriageFailedError(Exception):
 
 
 async def _request_triage(
-    context: TriageContext, model: str, *, repair_note: str | None = None
+    context: TriageContext, model: str, session: AsyncSession, *, repair_note: str | None = None
 ) -> TriageResult:
     client = get_anthropic_client()
     prompt = context.model_dump_json()
@@ -63,12 +65,16 @@ async def _request_triage(
         # failure — it propagates unhandled instead.
         raise anthropic.AnthropicError(str(exc)) from exc
 
+    await record_spend(session, model, response.usage.input_tokens, response.usage.output_tokens)
+
     if response.parsed_output is None:
         raise ValidationError.from_exception_data("TriageResult", [])
     return response.parsed_output
 
 
-async def call_triage_agent_with_retry(context: TriageContext, model: str) -> TriageResult:
+async def call_triage_agent_with_retry(
+    context: TriageContext, model: str, session: AsyncSession
+) -> TriageResult:
     """Exactly one retry/repair attempt, then escalate — per agent-rules.md.
 
     Catches anthropic.AnthropicError (the SDK's base exception, covering
@@ -77,9 +83,9 @@ async def call_triage_agent_with_retry(context: TriageContext, model: str) -> Tr
     and pydantic.ValidationError (invalid output shape).
     """
     try:
-        return await _request_triage(context, model)
+        return await _request_triage(context, model, session)
     except (anthropic.AnthropicError, ValidationError) as first_exc:
         try:
-            return await _request_triage(context, model, repair_note=str(first_exc))
+            return await _request_triage(context, model, session, repair_note=str(first_exc))
         except (anthropic.AnthropicError, ValidationError) as second_exc:
             raise TriageFailedError(f"Triage failed after retry: {second_exc}") from second_exc

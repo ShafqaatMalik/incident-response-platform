@@ -1,5 +1,6 @@
 import anthropic
 from pydantic import ValidationError
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.anthropic_client import get_anthropic_client
 from app.models.incident import Incident, Severity
@@ -10,6 +11,7 @@ from app.models.schemas import (
     LogEntry,
     ServiceMetrics,
 )
+from app.policies.budget_policy import record_spend
 
 INVESTIGATION_SYSTEM_PROMPT = """\
 You are the Investigation Agent in an AI incident response system.
@@ -68,7 +70,11 @@ class InvestigationFailedError(Exception):
 
 
 async def _request_investigation(
-    context: InvestigationContext, model: str, *, repair_note: str | None = None
+    context: InvestigationContext,
+    model: str,
+    session: AsyncSession,
+    *,
+    repair_note: str | None = None,
 ) -> InvestigationResult:
     client = get_anthropic_client()
     prompt = context.model_dump_json()
@@ -89,13 +95,15 @@ async def _request_investigation(
         # here as a bare TypeError, not an AnthropicError subclass.
         raise anthropic.AnthropicError(str(exc)) from exc
 
+    await record_spend(session, model, response.usage.input_tokens, response.usage.output_tokens)
+
     if response.parsed_output is None:
         raise ValidationError.from_exception_data("InvestigationResult", [])
     return response.parsed_output
 
 
 async def call_investigation_agent_with_retry(
-    context: InvestigationContext, model: str
+    context: InvestigationContext, model: str, session: AsyncSession
 ) -> InvestigationResult:
     """Exactly one retry/repair attempt, then escalate — per agent-rules.md.
 
@@ -105,10 +113,10 @@ async def call_investigation_agent_with_retry(
     failures too) and pydantic.ValidationError (invalid output shape).
     """
     try:
-        return await _request_investigation(context, model)
+        return await _request_investigation(context, model, session)
     except (anthropic.AnthropicError, ValidationError) as first_exc:
         try:
-            return await _request_investigation(context, model, repair_note=str(first_exc))
+            return await _request_investigation(context, model, session, repair_note=str(first_exc))
         except (anthropic.AnthropicError, ValidationError) as second_exc:
             raise InvestigationFailedError(
                 f"Investigation failed after retry: {second_exc}"

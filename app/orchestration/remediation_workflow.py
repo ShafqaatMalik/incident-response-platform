@@ -8,12 +8,16 @@ from app.agents.remediation import (
 from app.core.config import Settings
 from app.models.incident import Confidence, Incident, IncidentStatus
 from app.orchestration.state_machine import transition, validate_transition
+from app.policies.budget_policy import BudgetExceededError, is_budget_exceeded
 from app.policies.remediation_policy import risk_level_for
 
 
 async def run_remediation(
     incident: Incident, session: AsyncSession, settings: Settings
 ) -> Incident:
+    if await is_budget_exceeded(session, settings.daily_budget_limit_usd):
+        raise BudgetExceededError("Daily AI budget exceeded.")
+
     # Guard before touching any Triage/Diagnosis-output field: root_cause
     # and diagnosis_confidence are only guaranteed non-null once
     # status == DIAGNOSED. Checking this first — rather than letting a bad
@@ -34,7 +38,9 @@ async def run_remediation(
     )
 
     try:
-        result = await call_remediation_agent_with_retry(context, settings.remediation_model)
+        result = await call_remediation_agent_with_retry(
+            context, settings.remediation_model, session
+        )
     except RemediationFailedError as exc:
         transition(incident, IncidentStatus.ESCALATED)
         incident.escalation_reason = str(exc)
