@@ -11,6 +11,7 @@ from app.models.schemas import (
     LogEntry,
     ServiceMetrics,
 )
+from app.observability.tracing import anthropic_call_span
 from app.policies.budget_policy import record_spend
 
 INVESTIGATION_SYSTEM_PROMPT = """\
@@ -81,19 +82,23 @@ async def _request_investigation(
     if repair_note:
         prompt += f"\n\nYour previous response was invalid: {repair_note}\nPlease correct it."
 
-    try:
-        response = await client.messages.parse(
-            model=model,
-            max_tokens=4096,
-            system=INVESTIGATION_SYSTEM_PROMPT,
-            messages=[{"role": "user", "content": prompt}],
-            output_format=InvestigationResult,
-        )
-    except TypeError as exc:
-        # See app/agents/triage.py's identical narrow catch for why this is
-        # scoped to just this call — a missing-credentials failure surfaces
-        # here as a bare TypeError, not an AnthropicError subclass.
-        raise anthropic.AnthropicError(str(exc)) from exc
+    with anthropic_call_span("investigation", model) as span:
+        try:
+            response = await client.messages.parse(
+                model=model,
+                max_tokens=4096,
+                system=INVESTIGATION_SYSTEM_PROMPT,
+                messages=[{"role": "user", "content": prompt}],
+                output_format=InvestigationResult,
+            )
+        except TypeError as exc:
+            # See app/agents/triage.py's identical narrow catch for why this is
+            # scoped to just this call — a missing-credentials failure surfaces
+            # here as a bare TypeError, not an AnthropicError subclass.
+            raise anthropic.AnthropicError(str(exc)) from exc
+
+        span.set_attribute("gen_ai.usage.input_tokens", response.usage.input_tokens)
+        span.set_attribute("gen_ai.usage.output_tokens", response.usage.output_tokens)
 
     await record_spend(session, model, response.usage.input_tokens, response.usage.output_tokens)
 

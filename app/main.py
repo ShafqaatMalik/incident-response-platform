@@ -12,6 +12,7 @@ from app.core.errors import register_exception_handlers
 from app.core.rate_limit import limiter
 from app.observability.logging import RequestIdMiddleware, configure_logging
 from app.observability.metrics import MetricsMiddleware, render_metrics
+from app.observability.tracing import configure_tracing
 
 logger = logging.getLogger(__name__)
 
@@ -29,6 +30,7 @@ def create_app() -> FastAPI:
         )
 
     app = FastAPI(title="Incident Response Platform — Document API", version="0.1.0")
+    configure_tracing(app, settings)
 
     app.state.limiter = limiter
     app.add_middleware(SlowAPIMiddleware)

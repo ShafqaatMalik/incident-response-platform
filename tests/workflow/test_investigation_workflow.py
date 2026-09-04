@@ -1,6 +1,7 @@
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, Mock, patch
 
+from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -110,3 +111,30 @@ async def test_spend_is_recorded_after_a_successful_call(db_session: AsyncSessio
 
     spend = (await db_session.execute(select(DailySpend.total_cost_usd))).scalar_one()
     assert spend == calculate_cost("claude-sonnet-5", 1000, 200)
+
+
+async def test_anthropic_call_span_records_model_and_token_usage(
+    db_session: AsyncSession, span_exporter: InMemorySpanExporter
+) -> None:
+    incident = _triaged_incident()
+    db_session.add(incident)
+    await db_session.commit()
+
+    response = SimpleNamespace(
+        parsed_output=INVESTIGATION_RESULT,
+        usage=SimpleNamespace(input_tokens=1000, output_tokens=200),
+    )
+    fake_client = Mock()
+    fake_client.messages.parse = AsyncMock(return_value=response)
+    with patch("app.agents.investigation.get_anthropic_client", return_value=fake_client):
+        await run_investigation(incident, db_session, get_settings())
+
+    spans = [
+        s for s in span_exporter.get_finished_spans() if s.name == "investigation.anthropic_call"
+    ]
+    assert len(spans) == 1
+    attributes = spans[0].attributes
+    assert attributes is not None
+    assert attributes["gen_ai.request.model"] == "claude-sonnet-5"
+    assert attributes["gen_ai.usage.input_tokens"] == 1000
+    assert attributes["gen_ai.usage.output_tokens"] == 200

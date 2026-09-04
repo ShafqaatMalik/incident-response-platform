@@ -6,6 +6,7 @@ from app.core.anthropic_client import get_anthropic_client
 from app.core.config import Settings
 from app.models.incident import Incident
 from app.models.schemas import TriageContext, TriageResult
+from app.observability.tracing import anthropic_call_span
 from app.policies.budget_policy import record_spend
 
 TRIAGE_SYSTEM_PROMPT = """\
@@ -47,23 +48,27 @@ async def _request_triage(
     if repair_note:
         prompt += f"\n\nYour previous response was invalid: {repair_note}\nPlease correct it."
 
-    try:
-        response = await client.messages.parse(
-            model=model,
-            max_tokens=4096,
-            system=TRIAGE_SYSTEM_PROMPT,
-            messages=[{"role": "user", "content": prompt}],
-            output_format=TriageResult,
-        )
-    except TypeError as exc:
-        # anthropic.AsyncAnthropic() doesn't validate credentials at construction
-        # (see has_anthropic_credentials' docstring); a "no credentials resolved"
-        # failure only surfaces here, as a bare TypeError, not an AnthropicError
-        # subclass — confirmed empirically against anthropic==1.0.0. Narrowly
-        # scoped to just this call so a genuine TypeError bug elsewhere in this
-        # function (or in the retry logic below) isn't misreported as a triage
-        # failure — it propagates unhandled instead.
-        raise anthropic.AnthropicError(str(exc)) from exc
+    with anthropic_call_span("triage", model) as span:
+        try:
+            response = await client.messages.parse(
+                model=model,
+                max_tokens=4096,
+                system=TRIAGE_SYSTEM_PROMPT,
+                messages=[{"role": "user", "content": prompt}],
+                output_format=TriageResult,
+            )
+        except TypeError as exc:
+            # anthropic.AsyncAnthropic() doesn't validate credentials at construction
+            # (see has_anthropic_credentials' docstring); a "no credentials resolved"
+            # failure only surfaces here, as a bare TypeError, not an AnthropicError
+            # subclass — confirmed empirically against anthropic==1.0.0. Narrowly
+            # scoped to just this call so a genuine TypeError bug elsewhere in this
+            # function (or in the retry logic below) isn't misreported as a triage
+            # failure — it propagates unhandled instead.
+            raise anthropic.AnthropicError(str(exc)) from exc
+
+        span.set_attribute("gen_ai.usage.input_tokens", response.usage.input_tokens)
+        span.set_attribute("gen_ai.usage.output_tokens", response.usage.output_tokens)
 
     await record_spend(session, model, response.usage.input_tokens, response.usage.output_tokens)
 
