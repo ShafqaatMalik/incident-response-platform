@@ -16,6 +16,7 @@ class Settings(BaseSettings):
     diagnosis_model: str = "claude-sonnet-5"
     remediation_model: str = "claude-sonnet-5"
     daily_budget_limit_usd: float = 2.00
+    daily_failure_injection_limit: int = 5
     otel_traces_enabled: bool = False
 
 

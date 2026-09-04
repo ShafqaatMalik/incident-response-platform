@@ -8,6 +8,7 @@ from slowapi.errors import RateLimitExceeded
 from app.observability.logging import get_request_id
 from app.orchestration.state_machine import InvalidTransitionError
 from app.policies.budget_policy import BudgetExceededError
+from app.policies.failure_injection_policy import InjectionCapExceededError
 
 logger = logging.getLogger(__name__)
 
@@ -70,6 +71,14 @@ def register_exception_handlers(app: FastAPI) -> None:
             status.HTTP_429_TOO_MANY_REQUESTS,
             "budget_exceeded",
             str(exc),
+        )
+
+    @app.exception_handler(InjectionCapExceededError)
+    async def injection_cap_exceeded_handler(
+        request: Request, exc: InjectionCapExceededError
+    ) -> JSONResponse:
+        return _error_response(
+            status.HTTP_429_TOO_MANY_REQUESTS, "injection_cap_exceeded", str(exc)
         )
 
     @app.exception_handler(Exception)

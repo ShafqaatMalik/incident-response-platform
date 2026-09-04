@@ -4,6 +4,7 @@ from datetime import datetime
 from pydantic import BaseModel, Field
 
 from app.models.incident import ActionType, Confidence, IncidentStatus, RiskLevel, Severity
+from app.policies.failure_injection_policy import FailureCategory
 
 
 class DocumentCreate(BaseModel):
@@ -44,6 +45,10 @@ class ErrorResponse(BaseModel):
 class IncidentCreate(BaseModel):
     trigger: str = Field(min_length=1, max_length=2000)
     initial_evidence: list[str] = Field(default_factory=list)
+
+
+class FailureInjectionRequest(BaseModel):
+    category: FailureCategory
 
 
 class IncidentResponse(BaseModel):

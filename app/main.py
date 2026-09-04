@@ -5,7 +5,7 @@ from fastapi.responses import Response
 from slowapi.middleware import SlowAPIMiddleware
 
 from app.api.deps import require_api_key
-from app.api.routes import documents, health, incidents
+from app.api.routes import documents, failures, health, incidents
 from app.core.anthropic_client import has_anthropic_credentials
 from app.core.config import get_settings
 from app.core.errors import register_exception_handlers
@@ -42,6 +42,7 @@ def create_app() -> FastAPI:
     app.include_router(health.router)
     app.include_router(documents.router)
     app.include_router(incidents.router)
+    app.include_router(failures.router)
 
     @app.get("/metrics", dependencies=[Depends(require_api_key)])
     async def metrics() -> Response:
