@@ -42,6 +42,11 @@ async def run_migrations_online() -> None:
         config.get_section(config.config_ini_section, {}),
         prefix="sqlalchemy.",
         poolclass=pool.NullPool,
+        # Same fix as app/db/session.py's get_engine(): Supavisor's transaction-
+        # pooling mode can route each query to a different backend connection,
+        # which breaks asyncpg's server-side prepared-statement cache. A no-op
+        # against a direct (non-pooled) connection -- safe unconditionally.
+        connect_args={"statement_cache_size": 0},
     )
 
     async with connectable.connect() as connection:
