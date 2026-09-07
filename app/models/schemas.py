@@ -10,6 +10,7 @@ from app.policies.failure_injection_policy import FailureCategory
 class DocumentCreate(BaseModel):
     title: str | None = Field(default=None, max_length=255)
     text: str = Field(min_length=1, max_length=50_000)
+    is_synthetic: bool = Field(default=False)
 
 
 class DocumentResponse(BaseModel):
@@ -21,6 +22,7 @@ class DocumentResponse(BaseModel):
     sentence_count: int
     readability_score: float
     created_at: datetime
+    is_synthetic: bool
 
     model_config = {"from_attributes": True}
 

@@ -20,7 +20,11 @@ def test_build_request_sets_api_key_header_and_json_body() -> None:
     request = build_request("https://example.com", "secret-key", "Title", "Some text.")
     assert request.full_url == "https://example.com/documents"
     assert request.get_header("X-api-key") == "secret-key"
-    assert json.loads(request.data) == {"title": "Title", "text": "Some text."}
+    assert json.loads(request.data) == {
+        "title": "Title",
+        "text": "Some text.",
+        "is_synthetic": True,
+    }
 
 
 def test_send_once_returns_true_on_success() -> None:

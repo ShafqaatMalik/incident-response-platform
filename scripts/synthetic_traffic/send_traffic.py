@@ -99,7 +99,7 @@ def pick_sample(rng: random.Random | None = None) -> tuple[str, str]:
 
 def build_request(base_url: str, api_key: str, title: str, text: str) -> urllib.request.Request:
     url = base_url.rstrip("/") + "/documents"
-    body = json.dumps({"title": title, "text": text}).encode("utf-8")
+    body = json.dumps({"title": title, "text": text, "is_synthetic": True}).encode("utf-8")
     return urllib.request.Request(
         url,
         data=body,

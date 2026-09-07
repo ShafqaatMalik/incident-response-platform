@@ -39,6 +39,7 @@ async def create_document(
         word_count=metrics.word_count,
         sentence_count=metrics.sentence_count,
         readability_score=metrics.readability_score,
+        is_synthetic=payload.is_synthetic,
     )
     session.add(document)
     await session.commit()

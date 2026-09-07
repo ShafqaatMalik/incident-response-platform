@@ -22,6 +22,30 @@ async def test_create_and_get_document(client: AsyncClient, auth_headers: dict[s
     assert get_resp.json()["id"] == body["id"]
 
 
+async def test_create_document_defaults_to_not_synthetic(
+    client: AsyncClient, auth_headers: dict[str, str]
+) -> None:
+    resp = await client.post("/documents", json={"text": SAMPLE_TEXT}, headers=auth_headers)
+    assert resp.status_code == 201
+    assert resp.json()["is_synthetic"] is False
+
+
+async def test_create_document_persists_is_synthetic_true(
+    client: AsyncClient, auth_headers: dict[str, str]
+) -> None:
+    resp = await client.post(
+        "/documents",
+        json={"text": SAMPLE_TEXT, "is_synthetic": True},
+        headers=auth_headers,
+    )
+    assert resp.status_code == 201
+    body = resp.json()
+    assert body["is_synthetic"] is True
+
+    get_resp = await client.get(f"/documents/{body['id']}", headers=auth_headers)
+    assert get_resp.json()["is_synthetic"] is True
+
+
 async def test_create_document_requires_auth(client: AsyncClient) -> None:
     resp = await client.post("/documents", json={"text": "Hello there. General Kenobi."})
     assert resp.status_code == 401
