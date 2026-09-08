@@ -128,6 +128,18 @@ _SCENARIOS: dict[str, FakeScenario] = {
         p99_latency_ms=320.0,
         cpu_utilization=0.35,
     ),
+    "deployment_build_failure": FakeScenario(
+        name="deployment_build_failure",
+        log_lines=[
+            (5, "ERROR", "CI pipeline failed at build stage: dependency resolution conflict"),
+            (5, "ERROR", "build artifact was not produced; deployment aborted before rollout"),
+            (20, "INFO", "no new revision reached production"),
+        ],
+        deployment=None,
+        error_rate=0.01,
+        p99_latency_ms=310.0,
+        cpu_utilization=0.32,
+    ),
 }
 
 # Checked in this fixed order; first keyword match wins. Overlaps are
@@ -151,7 +163,7 @@ OLD_DEPLOYMENT: tuple[int, str, str] = (2 * 24 * 60, "v1.41.3", "minor logging i
 # Checked within a small character window immediately before a keyword
 # occurrence -- not a general negation parser, just enough to stop the
 # most common "no X" false positive this stub actually hit.
-_NEGATION_PHRASES = ("no recent", "not affected", "no known", "without any")
+_NEGATION_PHRASES = ("no recent", "not affected", "no known", "without any", "no new")
 _NEGATION_WINDOW_CHARS = 20
 
 
@@ -174,8 +186,33 @@ def _keyword_matches(lowered_trigger: str, keyword: str) -> bool:
     return False
 
 
+_BUILD_FAILURE_PHRASES = ("reached production", "shipped", "deployed to production")
+
+
+def _has_negated_phrase(lowered_trigger: str, phrase: str) -> bool:
+    """True if `phrase` appears in `lowered_trigger` at least once
+    immediately preceded by a negation phrase (e.g. "never reached
+    production", "has not shipped")."""
+    start = 0
+    while (index := lowered_trigger.find(phrase, start)) != -1:
+        if _is_negated(lowered_trigger, index):
+            return True
+        start = index + 1
+    return False
+
+
 def select_scenario(trigger: str) -> FakeScenario:
     lowered = trigger.lower()
+
+    # A negated "reached production"/"shipped"/"deployed to production"
+    # phrase is a more specific signal than any single bucket keyword --
+    # checked first, ahead of every bucket including database, so a
+    # build/pipeline failure that never shipped isn't misread as the
+    # general "deployment" bucket's shipped-and-failing-health-checks
+    # story.
+    if any(_has_negated_phrase(lowered, phrase) for phrase in _BUILD_FAILURE_PHRASES):
+        return _SCENARIOS["deployment_build_failure"]
+
     for name, keywords in _KEYWORD_ORDER:
         if any(_keyword_matches(lowered, keyword) for keyword in keywords):
             return _SCENARIOS[name]

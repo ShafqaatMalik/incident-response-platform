@@ -78,3 +78,35 @@ def test_negation_only_suppresses_the_keyword_it_precedes() -> None:
     # un-negated) should still make this match auth.
     trigger = "No known database issues; certificate validation is failing"
     assert select_scenario(trigger).name == "auth"
+
+
+# --- deployment_build_failure sub-scenario ---
+
+
+def test_deployment_003_style_trigger_selects_build_failure_not_deployment() -> None:
+    # Real evaluation scenario deployment_003's trigger -- a build/pipeline
+    # failure where nothing ever reached production, previously misdiagnosed
+    # as the general "shipped and now failing health checks" deployment
+    # story.
+    trigger = (
+        "Deployment pipeline for the notifications-service failed at the "
+        "build stage 20 minutes ago due to a dependency resolution conflict. "
+        "No new version has reached production; the currently running "
+        "version is unaffected and healthy."
+    )
+    assert select_scenario(trigger).name == "deployment_build_failure"
+
+
+def test_shipped_and_failing_trigger_still_selects_general_deployment_story() -> None:
+    # A genuine "it shipped and is now broken" trigger must NOT collide with
+    # the new build-failure scenario.
+    trigger = "New version v3.0.0 rolled out, health checks are now failing"
+    assert select_scenario(trigger).name == "deployment"
+
+
+def test_negated_shipped_phrase_also_selects_build_failure() -> None:
+    # Proves the check isn't solely coupled to deployment_003's exact
+    # wording -- a different one of the negated phrases ("shipped" instead
+    # of "reached production") should also trigger it.
+    trigger = "No new build has shipped to production"
+    assert select_scenario(trigger).name == "deployment_build_failure"
