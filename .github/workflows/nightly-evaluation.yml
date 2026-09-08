@@ -1,0 +1,48 @@
+name: Nightly Evaluation
+
+on:
+  schedule:
+    - cron: "0 13 * * *"
+  workflow_dispatch: {}
+
+env:
+  UV_VERSION: "0.5.x"
+
+jobs:
+  evaluation:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      API_KEY: eval-api-key
+      DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/test
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      DAILY_BUDGET_LIMIT_USD: "10"
+      ENVIRONMENT: evaluation
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v3
+        with:
+          version: ${{ env.UV_VERSION }}
+      - run: uv python install 3.12
+      - run: uv sync --all-groups
+      - run: uv run alembic upgrade head
+      - run: uv run pytest evaluation/
+      - run: uv run python evaluation/run.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: evaluation-report-${{ github.run_id }}
+          path: evaluation/reports/

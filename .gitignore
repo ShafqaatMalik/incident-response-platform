@@ -18,6 +18,9 @@ htmlcov/
 dist/
 build/
 
+# Evaluation harness run output
+/evaluation/reports/
+
 # Env / secrets
 .env
 .env.*

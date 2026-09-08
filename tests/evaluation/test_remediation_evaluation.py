@@ -4,6 +4,7 @@ Run explicitly: `uv run pytest tests/evaluation -m evaluation -v`
 """
 
 import pytest
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agents.remediation import call_remediation_agent_with_retry
 from app.models.schemas import RemediationContext
@@ -11,7 +12,9 @@ from app.models.schemas import RemediationContext
 pytestmark = pytest.mark.evaluation
 
 
-async def test_remediation_proposes_concrete_action_given_clear_diagnosis() -> None:
+async def test_remediation_proposes_concrete_action_given_clear_diagnosis(
+    db_session: AsyncSession,
+) -> None:
     context = RemediationContext(
         trigger="Checkout API returning 500s",
         affected_service="checkout-api",
@@ -27,7 +30,7 @@ async def test_remediation_proposes_concrete_action_given_clear_diagnosis() -> N
         ],
     )
 
-    result = await call_remediation_agent_with_retry(context, "claude-sonnet-5")
+    result = await call_remediation_agent_with_retry(context, "claude-sonnet-5", db_session)
 
     # Given a clear, well-evidenced root cause tied to a specific deploy,
     # the agent should propose a concrete action rather than punting to

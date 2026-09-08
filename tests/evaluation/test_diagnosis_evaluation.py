@@ -4,6 +4,7 @@ Run explicitly: `uv run pytest tests/evaluation -m evaluation -v`
 """
 
 import pytest
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agents.diagnosis import call_diagnosis_agent_with_retry
 from app.models.schemas import DiagnosisContext
@@ -11,7 +12,9 @@ from app.models.schemas import DiagnosisContext
 pytestmark = pytest.mark.evaluation
 
 
-async def test_diagnosis_grounds_root_cause_in_investigation_findings() -> None:
+async def test_diagnosis_grounds_root_cause_in_investigation_findings(
+    db_session: AsyncSession,
+) -> None:
     context = DiagnosisContext(
         trigger="Checkout API returning 500s",
         severity="high",
@@ -23,7 +26,7 @@ async def test_diagnosis_grounds_root_cause_in_investigation_findings() -> None:
         investigation_confidence="high",
     )
 
-    result = await call_diagnosis_agent_with_retry(context, "claude-sonnet-5")
+    result = await call_diagnosis_agent_with_retry(context, "claude-sonnet-5", db_session)
 
     # Given the clearly-correlated deployment and connection-pool-exhaustion
     # error pattern, the agent should ground its root cause in that evidence

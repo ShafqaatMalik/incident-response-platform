@@ -4,6 +4,7 @@ Run explicitly: `uv run pytest tests/evaluation -m evaluation -v`
 """
 
 import pytest
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agents.triage import call_triage_agent_with_retry
 from app.models.schemas import TriageContext
@@ -11,7 +12,7 @@ from app.models.schemas import TriageContext
 pytestmark = pytest.mark.evaluation
 
 
-async def test_severe_trigger_is_not_triaged_as_low_severity() -> None:
+async def test_severe_trigger_is_not_triaged_as_low_severity(db_session: AsyncSession) -> None:
     context = TriageContext(
         trigger=(
             "Total outage: checkout-api is returning 100% 5xx errors across all regions, "
@@ -24,7 +25,7 @@ async def test_severe_trigger_is_not_triaged_as_low_severity() -> None:
         service_metadata={"service_name": "checkout-api", "environment": "production"},
     )
 
-    result = await call_triage_agent_with_retry(context, "claude-sonnet-5")
+    result = await call_triage_agent_with_retry(context, "claude-sonnet-5", db_session)
 
     assert result.severity.value != "low"
     assert result.affected_service

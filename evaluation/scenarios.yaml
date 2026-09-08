@@ -1,0 +1,193 @@
+- id: api_001
+  category: api_failure
+  trigger: "Public API gateway returning HTTP 502 Bad Gateway for all requests to /v2/orders since 14:03 UTC, following a config deploy at 14:01 UTC that changed the upstream service's listening port."
+  initial_evidence: []
+  expected:
+    severity: high
+    root_cause: "Config deploy changed the upstream port without updating the gateway's routing config, so the gateway can't reach the service"
+    proposed_action: rollback_deployment
+    should_escalate: false
+
+- id: api_002
+  category: api_failure
+  trigger: "The /v1/search endpoint has started returning malformed JSON (missing closing braces) for approximately 8% of requests since 10:15 UTC. No recent deployments. CPU and memory on all instances are normal."
+  initial_evidence: []
+  expected:
+    severity: medium
+    root_cause: null
+    proposed_action: manual_investigation_required
+    should_escalate: false
+    notes: "No deployment to blame, no resource pressure -- tests whether the agent avoids inventing a specific cause (e.g. blaming a deploy that didn't happen) when the evidence doesn't point anywhere concrete."
+
+- id: api_003
+  category: api_failure
+  trigger: "Webhook delivery endpoint /v1/webhooks/incoming returned a single HTTP 500 at 22:41 UTC. No repeat occurrences in the following 3 hours. No customer complaints."
+  initial_evidence: []
+  expected:
+    severity: low
+    root_cause: null
+    proposed_action: no_action_needed
+    should_escalate: false
+    notes: "Tests whether a single, non-repeating, non-impactful error gets correctly rated low/no-action rather than escalated into a bigger investigation than it warrants."
+
+- id: auth_001
+  category: auth_failure
+  trigger: "Login success rate dropped from 99% to 40% starting 09:12 UTC. No recent deployments. Certificate for the identity provider integration expired at 09:10 UTC."
+  initial_evidence: []
+  expected:
+    severity: high
+    root_cause: "Expired TLS certificate for the identity provider integration is causing auth handshake failures"
+    proposed_action: manual_investigation_required
+    should_escalate: false
+    notes: "Tests whether the agent correctly avoids rollback_deployment just because that's a common action -- there's no deployment to roll back here, and renewing a cert isn't one of the six fixed actions, so manual_investigation_required is the honest answer."
+
+- id: auth_002
+  category: auth_failure
+  trigger: "Users report being logged out unexpectedly and needing to re-authenticate every few minutes, starting shortly after v4.3.0 deployed at 08:00 UTC, which changed the session token expiry configuration."
+  initial_evidence: []
+  expected:
+    severity: medium
+    root_cause: "v4.3.0's session token expiry configuration change is causing tokens to expire far sooner than intended"
+    proposed_action: rollback_deployment
+    should_escalate: false
+
+- id: auth_003
+  category: auth_failure
+  trigger: "A small number of users (roughly 12 over the past week) have reported being unable to reset their password via the 'forgot password' email flow. No pattern identified yet in affected accounts."
+  initial_evidence: []
+  expected:
+    severity: low
+    root_cause: null
+    proposed_action: manual_investigation_required
+    should_escalate: false
+    notes: "Low-volume, no clear pattern, spread over a week -- tests whether severity stays low/appropriately calibrated rather than being inflated because 'auth' sounds serious."
+
+- id: dependency_001
+  category: dependency_failure
+  trigger: "Checkout service intermittently timing out on calls to the inventory service, roughly 3% of requests, no clear pattern in timing. Started sometime in the last 24 hours; exact onset unknown."
+  initial_evidence: []
+  expected:
+    severity: medium
+    root_cause: null
+    proposed_action: manual_investigation_required
+    should_escalate: false
+    notes: "Tests whether the agent correctly stays at medium/lower confidence and punts to a human, rather than confidently inventing a specific root cause from vague, low-signal evidence."
+
+- id: dependency_002
+  category: dependency_failure
+  trigger: "All calls to the third-party payment processor (Stripe) have been failing with connection refused errors since 16:20 UTC. The payment processor's own public status page shows a confirmed ongoing outage."
+  initial_evidence: []
+  expected:
+    severity: critical
+    root_cause: "The third-party payment processor is experiencing a confirmed outage on their end, unrelated to anything in our own systems"
+    proposed_action: manual_investigation_required
+    should_escalate: false
+    notes: "Tests whether the agent correctly recognizes that none of the six fixed actions can fix someone else's outage -- high confidence in the diagnosis, but still correctly routes to manual_investigation_required rather than forcing an internal action."
+
+- id: dependency_003
+  category: dependency_failure
+  trigger: "The internal recommendation-engine service has been unreachable for the past 4 minutes; calls from the product-catalog service are timing out after the configured 5s timeout. The recommendation engine's own health check endpoint is also not responding."
+  initial_evidence: []
+  expected:
+    severity: high
+    root_cause: "The recommendation-engine service itself appears to be down or unresponsive, causing timeouts in any service that calls it"
+    proposed_action: restart_service
+    should_escalate: false
+
+- id: database_001
+  category: database_problem
+  trigger: "Write queries to the orders table failing with 'disk full' errors since 03:44 UTC. Database disk utilization at 100%, up from a steady 60% over the past month."
+  initial_evidence: []
+  expected:
+    severity: critical
+    root_cause: "Database disk has filled up, likely from unchecked growth (logs, temp tables, or accumulated data), blocking all writes"
+    proposed_action: manual_investigation_required
+    should_escalate: false
+    notes: "None of the six fixed actions directly fix a full disk -- tests whether the agent avoids forcing an ill-fitting action (e.g. restart_service, which wouldn't free any disk space) just to have something concrete to propose."
+
+- id: database_002
+  category: database_problem
+  trigger: "Read replica lag climbing steadily from 200ms to 45 seconds over the last 2 hours, no errors yet, but stale-data complaints from the reporting dashboard team."
+  initial_evidence: []
+  expected:
+    severity: medium
+    root_cause: "Replica lag increasing steadily suggests the replica can't keep up with write volume or is resource-constrained, heading toward a more serious staleness/availability problem if unaddressed"
+    proposed_action: scale_up
+    should_escalate: false
+    notes: "Tests whether the agent correctly treats climbing-but-not-yet-critical trends as medium severity, not high/critical -- nothing has actually broken yet."
+
+- id: database_003
+  category: database_problem
+  trigger: "Sporadic 'deadlock detected' errors on the payments table, roughly 5 times in the last hour, each auto-resolved by Postgres's own deadlock detection within seconds. No customer-facing errors reported."
+  initial_evidence: []
+  expected:
+    severity: low
+    root_cause: null
+    proposed_action: no_action_needed
+    should_escalate: false
+    notes: "Tests calibration on the low-severity end: auto-resolving, non-customer-facing issues shouldn't be over-escalated into a high-severity incident just because 'deadlock' sounds alarming."
+
+- id: deployment_001
+  category: deployment_failure
+  trigger: "New deployment v3.12.0 rolled out at 16:00 UTC. Health checks failing on all new pods; old pods still serving traffic but the rollout is stuck at 20% and won't progress."
+  initial_evidence: []
+  expected:
+    severity: high
+    root_cause: "The new deployment version is failing its own health checks, likely a genuine bug or misconfiguration introduced in v3.12.0, blocking the rollout from progressing further"
+    proposed_action: rollback_deployment
+    should_escalate: false
+
+- id: deployment_002
+  category: deployment_failure
+  trigger: "Deployment v2.8.1 completed successfully 3 hours ago, all health checks passing. Customer support has received 4 complaints in the last 30 minutes about a UI element being misaligned on mobile Safari specifically."
+  initial_evidence: []
+  expected:
+    severity: low
+    root_cause: "A visual/CSS regression introduced in v2.8.1, likely scoped to mobile Safari rendering specifically"
+    proposed_action: manual_investigation_required
+    should_escalate: false
+    notes: "Tests whether the agent avoids treating every post-deploy complaint as needing an urgent rollback -- a narrow cosmetic issue affecting one browser is real but low-severity."
+
+- id: deployment_003
+  category: deployment_failure
+  trigger: "Deployment pipeline for the notifications-service failed at the build stage 20 minutes ago due to a dependency resolution conflict. No new version has reached production; the currently running version is unaffected and healthy."
+  initial_evidence: []
+  expected:
+    severity: low
+    root_cause: "A build-time dependency conflict is blocking the CI pipeline; production is unaffected since nothing new was deployed"
+    proposed_action: no_action_needed
+    should_escalate: false
+    notes: "Tests whether the agent correctly recognizes this isn't a production incident at all -- a failed build that never reached production shouldn't be treated the same as a live outage."
+
+- id: latency_001
+  category: latency_problem
+  trigger: "p99 API latency has risen from a 300ms baseline to 8 seconds across all endpoints, starting abruptly at 11:47 UTC. CPU and memory utilization on all app instances are normal."
+  initial_evidence: []
+  expected:
+    severity: high
+    root_cause: null
+    proposed_action: manual_investigation_required
+    should_escalate: false
+    notes: "Tests whether the agent resists inventing a specific external cause when the given evidence explicitly rules out the app's own resources but doesn't point anywhere else concrete."
+
+- id: latency_002
+  category: latency_problem
+  trigger: "Checkout endpoint latency p99 climbed from 400ms to 2.1s immediately following today's 09:00 UTC deployment, which added a new synchronous call to the fraud-detection service on every checkout request."
+  initial_evidence: []
+  expected:
+    severity: medium
+    root_cause: "The new synchronous fraud-detection call added in today's deployment is adding latency directly to the checkout request path"
+    proposed_action: rollback_deployment
+    should_escalate: false
+    notes: "Clear temporal correlation with a specific, named code change -- should be a confident diagnosis, not treated as ambiguous like latency_001."
+
+- id: latency_003
+  category: latency_problem
+  trigger: "Batch report generation job, normally completing in 10 minutes, has taken over 90 minutes for the past 3 nightly runs. No errors logged; job eventually completes successfully each time. Not customer-facing."
+  initial_evidence: []
+  expected:
+    severity: low
+    root_cause: null
+    proposed_action: manual_investigation_required
+    should_escalate: false
+    notes: "Tests severity calibration for a non-customer-facing, successfully-completing-but-slow internal job -- shouldn't be rated high/critical just because '9x slower' sounds dramatic."
