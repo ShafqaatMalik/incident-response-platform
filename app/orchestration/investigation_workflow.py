@@ -36,9 +36,9 @@ async def run_investigation(
     affected_service = incident.affected_service
 
     logs, deployments, metrics = await asyncio.gather(
-        get_recent_logs(affected_service),
-        get_deployment_history(affected_service),
-        get_service_metrics(affected_service),
+        get_recent_logs(affected_service, incident.trigger),
+        get_deployment_history(affected_service, incident.trigger),
+        get_service_metrics(affected_service, incident.trigger),
     )
     context = build_investigation_context(
         incident, severity, affected_service, logs, deployments, metrics

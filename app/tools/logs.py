@@ -1,37 +1,26 @@
-"""STUB — no real log backend exists yet. Replace with a real Cloud Logging
-integration in Build Order step 5 (ARCHITECTURE.md §20). Returns
+"""STUB — no real log backend exists yet. Replace with a real Cloud
+Logging integration in Build Order step 5 (ARCHITECTURE.md §20). Returns
 deterministic (in content, not wall-clock timestamp) fake log lines,
-correlated with app/tools/deployments.py's fake deployment, so the
-Investigation Agent has something coherent to reason about.
+keyword-matched against the incident's trigger text via
+app/tools/fake_data.py so the returned story actually relates to what
+the incident describes, instead of always being the same fixed content.
 """
 
 from datetime import UTC, datetime, timedelta
 
 from app.models.schemas import LogEntry
+from app.tools.fake_data import select_scenario
 
 
-async def get_recent_logs(service: str, limit: int = 20) -> list[LogEntry]:
+async def get_recent_logs(service: str, trigger: str = "", limit: int = 20) -> list[LogEntry]:
+    scenario = select_scenario(trigger)
     now = datetime.now(UTC)
     entries = [
         LogEntry(
-            timestamp=now - timedelta(minutes=2),
-            level="ERROR",
-            message=f"{service}: connection pool exhausted, 0 available connections",
-        ),
-        LogEntry(
-            timestamp=now - timedelta(minutes=3),
-            level="ERROR",
-            message=f"{service}: request to database timed out after 5000ms",
-        ),
-        LogEntry(
-            timestamp=now - timedelta(minutes=5),
-            level="WARN",
-            message=f"{service}: elevated response latency detected",
-        ),
-        LogEntry(
-            timestamp=now - timedelta(minutes=7),
-            level="INFO",
-            message=f"{service}: connection pool size reduced during rolling restart",
-        ),
+            timestamp=now - timedelta(minutes=minutes_ago),
+            level=level,
+            message=f"{service}: {message}",
+        )
+        for minutes_ago, level, message in scenario.log_lines
     ]
     return entries[:limit]
