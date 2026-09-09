@@ -12,9 +12,13 @@ from app.observability.tracing import anthropic_call_span
 # The judge is evaluation-only tooling, never a production code path, so its
 # model choice lives here as a plain constant rather than a new Settings
 # field (app/core/config.py's *_model fields are the production app's own
-# configurable surface). Haiku, not Sonnet -- the judge doesn't need the
-# strongest model, and it was the single largest cost line in a run.
-JUDGE_MODEL = "claude-haiku-4-5-20251001"
+# configurable surface). Sonnet, not Haiku -- tried Haiku for cost, but with
+# cost tracking actually working the judge turned out not to be the
+# dominant cost line (~14% of a run, not the majority originally assumed),
+# and Haiku's hallucination-detection counts looked less stable across runs
+# -- not worth the reduced grading consistency for the savings involved.
+# See STATUS.md.
+JUDGE_MODEL = "claude-sonnet-5"
 
 JUDGE_SYSTEM_PROMPT = """\
 You are the evaluation judge for an AI incident response system. You are
