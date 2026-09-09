@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 
 from checks import RuleBasedResult, extract_call_records, run_rule_based_checks
-from judge import JudgeVerdict, call_judge_with_retry
+from judge import JUDGE_MODEL, JudgeVerdict, call_judge_with_retry
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 from scenarios import Scenario
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -72,7 +72,7 @@ async def run_scenario(
 
     records = extract_call_records(exporter.get_finished_spans())
     rule_based = run_rule_based_checks(incident, scenario, records, stage_evidence_counts)
-    verdict, judge_error = await call_judge_with_retry(scenario, incident, settings.triage_model)
+    verdict, judge_error = await call_judge_with_retry(scenario, incident, JUDGE_MODEL)
 
     return ScenarioResult(
         scenario=scenario,
