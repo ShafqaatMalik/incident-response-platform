@@ -83,7 +83,7 @@ async def _request_judgment(
     if repair_note:
         prompt += f"\n\nYour previous response was invalid: {repair_note}\nPlease correct it."
 
-    with anthropic_call_span("judge", model):
+    with anthropic_call_span("judge", model) as span:
         try:
             response = await client.messages.parse(
                 model=model,
@@ -94,6 +94,9 @@ async def _request_judgment(
             )
         except TypeError as exc:
             raise anthropic.AnthropicError(str(exc)) from exc
+
+        span.set_attribute("gen_ai.usage.input_tokens", response.usage.input_tokens)
+        span.set_attribute("gen_ai.usage.output_tokens", response.usage.output_tokens)
 
     if response.parsed_output is None:
         raise ValidationError.from_exception_data("JudgeVerdict", [])
