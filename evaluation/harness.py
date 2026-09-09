@@ -70,9 +70,15 @@ async def run_scenario(
     except BudgetExceededError as exc:
         return ScenarioResult.harness_aborted(scenario, str(exc))
 
+    # The judge call must happen before spans are read -- its own
+    # anthropic_call_span("judge", ...) span doesn't exist in the exporter
+    # until this call actually runs, so reading spans first would silently
+    # exclude the judge's cost from every result (this was a real bug: see
+    # STATUS.md).
+    verdict, judge_error = await call_judge_with_retry(scenario, incident, JUDGE_MODEL)
+
     records = extract_call_records(exporter.get_finished_spans())
     rule_based = run_rule_based_checks(incident, scenario, records, stage_evidence_counts)
-    verdict, judge_error = await call_judge_with_retry(scenario, incident, JUDGE_MODEL)
 
     return ScenarioResult(
         scenario=scenario,
