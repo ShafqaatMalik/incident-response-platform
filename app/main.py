@@ -1,6 +1,7 @@
 import logging
 
 from fastapi import Depends, FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
 from slowapi.middleware import SlowAPIMiddleware
 
@@ -36,6 +37,12 @@ def create_app() -> FastAPI:
     app.add_middleware(SlowAPIMiddleware)
     app.add_middleware(MetricsMiddleware)
     app.add_middleware(RequestIdMiddleware)
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=[o.strip() for o in settings.cors_allowed_origins.split(",")],
+        allow_methods=["GET", "POST"],
+        allow_headers=["X-API-Key", "Content-Type"],
+    )
 
     register_exception_handlers(app)
 

@@ -1,6 +1,7 @@
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_db_session, require_api_key
@@ -10,6 +11,7 @@ from app.models.incident import Incident, IncidentStatus
 from app.models.schemas import (
     ApprovalRequest,
     IncidentCreate,
+    IncidentListResponse,
     IncidentResponse,
     RejectionRequest,
 )
@@ -23,6 +25,57 @@ from app.orchestration.validation_workflow import run_validation
 router = APIRouter(
     prefix="/internal/incidents", tags=["incidents"], dependencies=[Depends(require_api_key)]
 )
+
+
+@router.get("", response_model=IncidentListResponse)
+@limiter.limit(rate_limit_value)
+async def list_incidents(
+    request: Request,
+    response: Response,
+    limit: int = Query(default=20, ge=1, le=100),
+    offset: int = Query(default=0, ge=0),
+    session: AsyncSession = Depends(get_db_session),
+) -> IncidentListResponse:
+    total = await session.scalar(select(func.count()).select_from(Incident))
+    open_count = await session.scalar(
+        select(func.count())
+        .select_from(Incident)
+        .where(Incident.status.notin_(["approved", "rejected", "escalated"]))
+    )
+    awaiting_approval_count = await session.scalar(
+        select(func.count())
+        .select_from(Incident)
+        .where(Incident.status == IncidentStatus.AWAITING_APPROVAL.value)
+    )
+    result = await session.scalars(
+        select(Incident).order_by(Incident.created_at.desc()).limit(limit).offset(offset)
+    )
+    items = list(result.all())
+    return IncidentListResponse(
+        items=[IncidentResponse.model_validate(i) for i in items],
+        total=total or 0,
+        limit=limit,
+        offset=offset,
+        open_count=open_count or 0,
+        awaiting_approval_count=awaiting_approval_count or 0,
+    )
+
+
+@router.get("/{incident_id}", response_model=IncidentResponse)
+@limiter.limit(rate_limit_value)
+async def get_incident(
+    request: Request,
+    response: Response,
+    incident_id: uuid.UUID,
+    session: AsyncSession = Depends(get_db_session),
+) -> Incident:
+    incident = await session.get(Incident, incident_id)
+    if incident is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Incident {incident_id} not found.",
+        )
+    return incident
 
 
 @router.post("", response_model=IncidentResponse, status_code=status.HTTP_201_CREATED)

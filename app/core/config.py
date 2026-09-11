@@ -18,6 +18,7 @@ class Settings(BaseSettings):
     daily_budget_limit_usd: float = 2.00
     daily_failure_injection_limit: int = 5
     otel_traces_enabled: bool = False
+    cors_allowed_origins: str = "http://localhost:5173"
 
 
 @lru_cache

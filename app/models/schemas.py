@@ -83,6 +83,15 @@ class IncidentResponse(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class IncidentListResponse(BaseModel):
+    items: list[IncidentResponse]
+    total: int
+    limit: int
+    offset: int
+    open_count: int
+    awaiting_approval_count: int
+
+
 class TriageContext(BaseModel):
     """Scoped agent input — never the full Incident row or its history."""
 
