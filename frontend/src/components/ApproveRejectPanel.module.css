@@ -1,0 +1,97 @@
+.panel {
+  border: 1px solid var(--accent-border);
+  background: var(--accent-bg-subtle);
+  border-radius: var(--radius);
+  padding: var(--space-3);
+  margin: 0 0 var(--space-3);
+}
+
+.nameField,
+.reasonField {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--text-muted);
+  margin-bottom: var(--space-2);
+  max-width: 320px;
+}
+
+.nameField input,
+.reasonField textarea {
+  font: inherit;
+  font-size: var(--text-md);
+  padding: var(--space-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-surface);
+  color: var(--text);
+}
+
+.nameField input:focus,
+.reasonField textarea:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: -1px;
+}
+
+.reasonField {
+  max-width: 100%;
+}
+
+.rejectForm {
+  display: flex;
+  flex-direction: column;
+}
+
+.actions {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.actions button {
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-sm);
+  border: 1px solid transparent;
+  font-size: var(--text-sm);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.actions button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* The primary action on the whole dashboard -- solid accent fill, the one
+   place "the approve button" from the design brief gets its own weight. */
+.approve {
+  background: var(--accent);
+  color: #fff;
+}
+
+.approve:hover:not(:disabled) {
+  background: var(--accent-hover);
+}
+
+.reject {
+  background: transparent;
+  border-color: var(--status-bad);
+  color: var(--status-bad);
+}
+
+.reject:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--status-bad) 12%, transparent);
+}
+
+.cancel {
+  background: transparent;
+  border-color: var(--border);
+  color: var(--text-muted);
+}
+
+.error {
+  margin: var(--space-2) 0 0;
+  color: var(--status-bad);
+  font-size: var(--text-sm);
+}

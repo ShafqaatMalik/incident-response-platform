@@ -1,0 +1,75 @@
+.card {
+  display: block;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-left: 3px solid transparent;
+  border-radius: var(--radius);
+  padding: var(--space-2);
+  text-decoration: none;
+  color: inherit;
+  transition:
+    border-color 100ms ease,
+    background-color 100ms ease;
+}
+
+.card:hover {
+  background: var(--bg-surface-muted);
+}
+
+/* Cohesion at the card level, not the badge level -- each section tints
+   its cards' left border and gives the card a faint full background wash
+   in its own identity color. Badges inside keep their own fixed semantic
+   colors (see IncidentCard.tsx) so meaning never gets diluted. */
+.card[data-tone='awaiting_approval'] {
+  border-left-color: var(--section-awaiting);
+  background: color-mix(in srgb, var(--section-awaiting) 5%, var(--bg-surface));
+}
+.card[data-tone='awaiting_approval']:hover {
+  border-color: var(--section-awaiting-border);
+}
+
+.card[data-tone='in_progress'] {
+  border-left-color: var(--section-progress);
+  background: color-mix(in srgb, var(--section-progress) 5%, var(--bg-surface));
+}
+.card[data-tone='in_progress']:hover {
+  border-color: var(--section-progress-border);
+}
+
+.card[data-tone='resolved'] {
+  border-left-color: var(--section-resolved);
+  background: color-mix(in srgb, var(--section-resolved) 5%, var(--bg-surface));
+}
+.card[data-tone='resolved']:hover {
+  border-color: var(--section-resolved-border);
+}
+
+.badgeRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-bottom: var(--space-1);
+}
+
+/* 2-line clamp, not 3 -- one of the deliberate cuts for fitting at least 2
+   cards per section without scrolling on a normal laptop viewport (the
+   other cuts are padding/margin, this is the one that trims content
+   height itself; full text is always still one click away). */
+.trigger {
+  margin: 0;
+  font-size: var(--text-md);
+  font-weight: 500;
+  color: var(--text);
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  word-break: break-word;
+}
+
+.createdAt {
+  margin: 2px 0 0;
+  font-size: var(--text-sm);
+  color: var(--text-faint);
+}

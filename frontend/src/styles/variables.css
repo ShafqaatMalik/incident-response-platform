@@ -1,0 +1,89 @@
+/* Dark theme, deliberately -- not a light theme with a dark variant
+   bolted on. There is exactly one accent hue (indigo/violet); every other
+   "accent-ish" color below is a tonal derivative of it for a specific job
+   (solid fill for buttons, a brighter tone for text/links on near-black,
+   a low-opacity tint for background emphasis), not a second color. */
+:root {
+  color-scheme: dark;
+
+  --bg-canvas: #0d0e12;
+  --bg-surface: #16181f;
+  --bg-surface-muted: #1d2029;
+  --border: #262932;
+
+  --text: #edeef2;
+  --text-muted: #9aa0ad;
+  --text-faint: #858c9b;
+
+  /* The one accent, three tones for three jobs. */
+  --accent: #5457e5; /* solid fills: primary buttons (white text needs 4.5:1) */
+  --accent-hover: #6366f1; /* solid fill hover state */
+  --accent-text: #a5b4fc; /* links, "awaiting approval" text/badges on dark */
+  --accent-bg-subtle: color-mix(in srgb, var(--accent) 18%, transparent);
+  --accent-border: color-mix(in srgb, var(--accent) 45%, transparent);
+
+  --link: var(--accent-text);
+
+  /* A soft blue-white for the app's two identity headings (the top-bar
+     wordmark and the page title) -- a 75/25 blend of --text and
+     --accent-text, so it's tied to the accent family without being full
+     accent saturation (that's reserved for links/badges/buttons). Still
+     >13:1 contrast against both backgrounds. */
+  --heading: color-mix(in srgb, var(--text) 75%, var(--accent-text));
+
+  /* Status/severity palette -- kept semantically distinct from the accent
+     (so "awaiting approval" doesn't visually collide with "in progress" or
+     "high severity"), brightened for legibility against --bg-canvas. */
+  --status-neutral: #8b93a1;
+  --status-progress: #60a5fa;
+  --status-attention: #fbbf24;
+  --status-good: #4ade80;
+  --status-bad: #f87171;
+
+  /* One identity color per list-page section. "Awaiting Approval" reuses
+     --status-bad (the same red/coral as the "Escalated" status) rather
+     than the app's indigo accent -- red signals urgency/needs-action more
+     directly than the accent does, and this is the one section where
+     that's exactly the message. The individual "Awaiting Approval"
+     status *badge* stays on the indigo accent (see STATUS_COLORS in
+     constants.ts) -- badge meaning and section chrome are deliberately
+     independent, same as every other section. "In Progress" reuses
+     --status-progress's blue directly, so its badges already match;
+     "Resolved" is a deliberately *muted* sage-green, not the vibrant
+     --status-good green -- a resolved incident isn't necessarily a happy
+     one (rejected/escalated live here too), so this reads as "closed,"
+     not "success." */
+  --section-awaiting: var(--status-bad);
+  --section-awaiting-border: color-mix(in srgb, var(--status-bad) 45%, transparent);
+
+  --section-progress: var(--status-progress);
+  --section-progress-bg-subtle: color-mix(in srgb, var(--section-progress) 8%, transparent);
+  --section-progress-border: color-mix(in srgb, var(--section-progress) 30%, transparent);
+
+  --section-resolved: #7dd3ae;
+  --section-resolved-bg-subtle: color-mix(in srgb, var(--section-resolved) 8%, transparent);
+  --section-resolved-border: color-mix(in srgb, var(--section-resolved) 30%, transparent);
+
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-card-hover: 0 4px 12px rgba(0, 0, 0, 0.45);
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 16px;
+  --space-4: 24px;
+  --space-5: 32px;
+  --space-6: 40px;
+
+  --radius: 8px;
+  --radius-sm: 5px;
+
+  --font-sans:
+    system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+  --text-2xl: 26px;
+  --text-xl: 18px;
+  --text-md: 14px;
+  --text-sm: 12.5px;
+  --text-xs: 11px;
+}

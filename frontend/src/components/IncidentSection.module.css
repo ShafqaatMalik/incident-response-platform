@@ -1,0 +1,86 @@
+.section {
+  min-width: 0; /* let a grid column shrink below its content's natural width */
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-1);
+  padding: 2px 0;
+}
+
+.title {
+  margin: 0;
+  font-size: var(--text-xl);
+  font-weight: 700;
+  color: var(--text);
+}
+
+.count {
+  font-size: var(--text-sm);
+  font-weight: 700;
+  color: var(--text-faint);
+  background: var(--bg-surface-muted);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 1px 9px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* All three sections get the same plain treatment now -- colored title +
+   outlined count pill, no background band. "Awaiting Approval" stands out
+   through color choice (red/coral, matching "Escalated") rather than
+   extra chrome. */
+.header[data-tone='awaiting_approval'] .title {
+  color: var(--section-awaiting);
+}
+.header[data-tone='awaiting_approval'] .count {
+  color: var(--section-awaiting);
+  border-color: var(--section-awaiting-border);
+}
+
+.header[data-tone='in_progress'] .title {
+  color: var(--section-progress);
+}
+.header[data-tone='in_progress'] .count {
+  color: var(--section-progress);
+  border-color: var(--section-progress-border);
+}
+
+.header[data-tone='resolved'] .title {
+  color: var(--section-resolved);
+}
+.header[data-tone='resolved'] .count {
+  color: var(--section-resolved);
+  border-color: var(--section-resolved-border);
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.empty {
+  margin: 0;
+  padding: var(--space-3);
+  border: 1px dashed var(--border);
+  border-radius: var(--radius);
+  color: var(--text-faint);
+  font-size: var(--text-sm);
+  text-align: center;
+}
+
+.viewAll {
+  display: inline-block;
+  margin-top: var(--space-2);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--link);
+  text-decoration: none;
+}
+
+.viewAll:hover {
+  text-decoration: underline;
+}

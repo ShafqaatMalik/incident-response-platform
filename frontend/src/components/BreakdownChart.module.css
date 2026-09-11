@@ -1,0 +1,65 @@
+.card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 6px;
+  flex: 1;
+  min-width: 320px;
+}
+
+/* Overrides global.css's <h3> (small/dim/uppercase-label styling) -- this
+   is a chart title, meant to read as a heading, not a muted label. */
+.title {
+  margin: 0 0 4px;
+  font-size: var(--text-sm);
+  font-weight: 800;
+  color: var(--text);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.rows {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: 110px 1fr 30px;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+/* Deliberately less bold than .title above it -- title/label/count forms
+   a clear size+weight hierarchy: title (800, uppercase) > count (700) >
+   label (500, normal case), even with label/count now close in size. */
+.label {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.track {
+  height: 5px;
+  background: var(--bg-surface-muted);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.bar {
+  height: 100%;
+  border-radius: 999px;
+  transition: width 200ms ease;
+}
+
+.count {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--text);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
