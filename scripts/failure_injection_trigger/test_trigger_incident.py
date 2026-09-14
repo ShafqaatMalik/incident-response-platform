@@ -35,7 +35,7 @@ def test_build_stage_request_targets_correct_path() -> None:
     assert request.get_header("X-api-key") == "secret-key"
 
 
-def test_inject_picks_one_of_the_three_categories_and_is_varied() -> None:
+def test_inject_picks_one_of_the_categories_and_is_varied() -> None:
     rng = random.Random(1)
     seen_categories = set()
     captured_requests = []

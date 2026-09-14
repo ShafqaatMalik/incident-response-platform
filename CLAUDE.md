@@ -83,10 +83,11 @@ the state machine's terminal states remain `APPROVED`/`REJECTED`/
   stdlib-only script (no new dependency on the main app), deployed as a
   Cloud Run Job triggered by Cloud Scheduler every 7 minutes, posting
   varied realistic text to `/documents`.
-- Done: failure injection — `POST /internal/failures/inject`, three
+- Done: failure injection — `POST /internal/failures/inject`, five
   categories (`dependency_timeout`, `elevated_error_rate`,
-  `latency_spike`), each producing a real `DETECTED` incident with
-  category-specific realistic trigger text. Capped at
+  `latency_spike`, `gradual_degradation`, `isolated_incident`), each
+  producing a real `DETECTED` incident with category-specific
+  realistic trigger text. Capped at
   `daily_failure_injection_limit` (default 5/day, new `daily_injections`
   table, migration `0008`) — `429 injection_cap_exceeded` once hit.
   Injected incidents are indistinguishable from manually-created ones

@@ -16,6 +16,8 @@ class FailureCategory(StrEnum):
     DEPENDENCY_TIMEOUT = "dependency_timeout"
     ELEVATED_ERROR_RATE = "elevated_error_rate"
     LATENCY_SPIKE = "latency_spike"
+    GRADUAL_DEGRADATION = "gradual_degradation"
+    ISOLATED_INCIDENT = "isolated_incident"
 
 
 _TRIGGERS: dict[FailureCategory, tuple[str, list[str]]] = {
@@ -44,6 +46,26 @@ _TRIGGERS: dict[FailureCategory, tuple[str, list[str]]] = {
             "p99 latency 4200ms vs 700ms baseline",
             "no increase in 4xx/5xx error rate",
             "CPU utilization on app instances elevated to 85%",
+        ],
+    ),
+    FailureCategory.GRADUAL_DEGRADATION: (
+        "Read replica lag climbing steadily from 200ms to 45 seconds over "
+        "the last 2 hours, no errors yet, but stale-data complaints from "
+        "the reporting dashboard team.",
+        [
+            "replica lag 200ms -> 45s over the last 2 hours, still climbing",
+            "no read or write errors reported, all queries still succeeding",
+            "reporting dashboard team flagged stale data starting ~90 minutes ago",
+        ],
+    ),
+    FailureCategory.ISOLATED_INCIDENT: (
+        "Webhook delivery endpoint /v1/webhooks/incoming returned a single "
+        "HTTP 500 at 22:41 UTC. No repeat occurrences in the following 3 "
+        "hours. No customer complaints.",
+        [
+            "single 500 Internal Server Error on POST /v1/webhooks/incoming at 22:41 UTC",
+            "zero repeat occurrences in the 3 hours since",
+            "no customer complaints or support tickets related to webhook delivery",
         ],
     ),
 }

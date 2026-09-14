@@ -22,7 +22,13 @@ import urllib.request
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger("failure_injection_trigger")
 
-CATEGORIES = ["dependency_timeout", "elevated_error_rate", "latency_spike"]
+CATEGORIES = [
+    "dependency_timeout",
+    "elevated_error_rate",
+    "latency_spike",
+    "gradual_degradation",
+    "isolated_incident",
+]
 STAGES = ["triage", "investigate", "diagnose", "remediate", "validate"]
 
 INJECT_TIMEOUT = 30.0

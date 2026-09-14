@@ -42,6 +42,20 @@ def test_latency_spike_trigger_is_specific() -> None:
     assert evidence
 
 
+def test_gradual_degradation_trigger_is_specific() -> None:
+    trigger, evidence = build_injection_trigger(FailureCategory.GRADUAL_DEGRADATION)
+    assert "lag" in trigger.lower()
+    assert "replica" in trigger.lower()
+    assert evidence
+
+
+def test_isolated_incident_trigger_is_specific() -> None:
+    trigger, evidence = build_injection_trigger(FailureCategory.ISOLATED_INCIDENT)
+    assert "webhook" in trigger.lower()
+    assert "500" in trigger
+    assert evidence
+
+
 def test_all_categories_produce_distinct_triggers() -> None:
     triggers = {build_injection_trigger(category)[0] for category in FailureCategory}
     assert len(triggers) == len(FailureCategory)

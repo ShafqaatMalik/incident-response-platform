@@ -16,7 +16,13 @@ TRIAGE_RESULT = TriageResult(
 
 @pytest.mark.parametrize(
     "category",
-    ["dependency_timeout", "elevated_error_rate", "latency_spike"],
+    [
+        "dependency_timeout",
+        "elevated_error_rate",
+        "latency_spike",
+        "gradual_degradation",
+        "isolated_incident",
+    ],
 )
 async def test_inject_failure_happy_path(
     client: AsyncClient, auth_headers: dict[str, str], category: str
