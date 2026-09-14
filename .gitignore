@@ -21,6 +21,9 @@ build/
 # Evaluation harness run output
 /evaluation/reports/
 
+# Burst test run output
+/scripts/burst_test/reports/
+
 # Env / secrets
 .env
 .env.*
