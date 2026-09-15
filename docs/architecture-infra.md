@@ -14,7 +14,7 @@ flowchart TD
     SCHEDULER["Cloud Scheduler"]
     NETLIFY["Netlify<br/>Incident dashboard (static React)"]
 
-    subgraph COMPUTE["Cloud Run (australia-southeast1)"]
+    subgraph COMPUTE["<b>Cloud Run (australia-southeast1)</b>"]
         direction TB
         TRAFFIC["irp-synthetic-traffic<br/>*/7 * * * *<br/>SA: irp-synthetic-traffic-sa"]
         TRIGGER["irp-failure-injection-trigger<br/>06:43 and 18:43 UTC<br/>SA: irp-synthetic-traffic-sa"]
@@ -57,6 +57,8 @@ flowchart TD
     class TRACE observability
 
     linkStyle 6 stroke:#dc2626,stroke-width:2px
+
+    style COMPUTE fill:#fdf8e4,stroke:#4f46e5,stroke-width:3px
 ```
 
 **Reading the diagram**: three tiers, top to bottom. Cloud Scheduler
