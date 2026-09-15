@@ -10,12 +10,12 @@ agents call Anthropic's API directly from the backend, with every call
 traced to Google Cloud Trace via OpenTelemetry.
 
 ```mermaid
-%%{init: {"flowchart": {"subGraphTitleMargin": {"top": 40, "bottom": 25}}}}%%
+%%{init: {"flowchart": {"subGraphTitleMargin": {"top": 40, "bottom": 25}, "rankSpacing": 70}}}%%
 flowchart TD
-    SCHEDULER["<b style='font-size:16px'>Cloud Scheduler</b>"]
+    SCHEDULER["<b style='font-size:20px'>Cloud Scheduler</b>"]
     NETLIFY["<b>Netlify</b><br/>Incident dashboard (static React)"]
 
-    subgraph COMPUTE["<b style='font-size:18px; color:#4338ca'>Cloud Run (australia-southeast1)</b>"]
+    subgraph COMPUTE["<b style='font-size:24px; color:#4338ca'>Cloud Run (australia-southeast1)</b>"]
         direction TB
         TRAFFIC["<b>irp-synthetic-traffic</b><br/>*/7 * * * *<br/>SA: irp-synthetic-traffic-sa"]
         CLEANUP["<b>irp-synthetic-cleanup</b><br/>03:17 UTC daily<br/>SA: irp-synthetic-cleanup-sa"]
@@ -29,10 +29,11 @@ flowchart TD
     ANTHROPIC["<b>Anthropic API</b>"]
     TRACE["<b>Cloud Trace</b>"]
 
+    NETLIFY ~~~ CLEANUP
+    NETLIFY -->|HTTPS| SERVICE
     SCHEDULER --> TRAFFIC
     SCHEDULER --> TRIGGER
     SCHEDULER --> CLEANUP
-    NETLIFY -->|HTTPS| SERVICE
 
     TRAFFIC -->|POST /documents| SERVICE
     TRIGGER -->|"POST /internal/failures/inject + 5 pipeline-stage calls"| SERVICE
@@ -58,7 +59,7 @@ flowchart TD
     class NETLIFY,ANTHROPIC external
     class TRACE observability
 
-    linkStyle 7 stroke:#dc2626,stroke-width:2px
+    linkStyle 8 stroke:#dc2626,stroke-width:2px
 
     style COMPUTE fill:#fdf8e4,stroke:#4f46e5,stroke-width:3px
 ```
