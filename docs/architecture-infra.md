@@ -10,22 +10,24 @@ agents call Anthropic's API directly from the backend, with every call
 traced to Google Cloud Trace via OpenTelemetry.
 
 ```mermaid
+%%{init: {"flowchart": {"subGraphTitleMargin": {"top": 40, "bottom": 25}}}}%%
 flowchart TD
-    SCHEDULER["Cloud Scheduler"]
-    NETLIFY["Netlify<br/>Incident dashboard (static React)"]
+    SCHEDULER["<b>Cloud Scheduler</b>"]
+    NETLIFY["<b>Netlify</b><br/>Incident dashboard (static React)"]
 
     subgraph COMPUTE["<b>Cloud Run (australia-southeast1)</b>"]
         direction TB
-        TRAFFIC["irp-synthetic-traffic<br/>*/7 * * * *<br/>SA: irp-synthetic-traffic-sa"]
-        TRIGGER["irp-failure-injection-trigger<br/>06:43 and 18:43 UTC<br/>SA: irp-synthetic-traffic-sa"]
-        CLEANUP["irp-synthetic-cleanup<br/>03:17 UTC daily<br/>SA: irp-synthetic-cleanup-sa"]
-        SERVICE["incident-response-platform<br/>FastAPI service"]
+        TRAFFIC["<b>irp-synthetic-traffic</b><br/>*/7 * * * *<br/>SA: irp-synthetic-traffic-sa"]
+        CLEANUP["<b>irp-synthetic-cleanup</b><br/>03:17 UTC daily<br/>SA: irp-synthetic-cleanup-sa"]
+        TRIGGER["<b>irp-failure-injection-trigger</b><br/>06:43 and 18:43 UTC<br/>SA: irp-synthetic-traffic-sa"]
+        SERVICE["<b>incident-response-platform</b><br/>FastAPI service"]
+        CLEANUP ~~~ SERVICE
     end
 
-    DB[("Supabase Postgres<br/>via Transaction Pooler")]
-    SECRETS[("Secret Manager")]
-    ANTHROPIC["Anthropic API"]
-    TRACE["Cloud Trace"]
+    DB[("<b>Supabase Postgres</b><br/>via Transaction Pooler")]
+    SECRETS[("<b>Secret Manager</b>")]
+    ANTHROPIC["<b>Anthropic API</b>"]
+    TRACE["<b>Cloud Trace</b>"]
 
     SCHEDULER --> TRAFFIC
     SCHEDULER --> TRIGGER
@@ -56,9 +58,9 @@ flowchart TD
     class NETLIFY,ANTHROPIC external
     class TRACE observability
 
-    linkStyle 6 stroke:#dc2626,stroke-width:2px
+    linkStyle 7 stroke:#dc2626,stroke-width:2px
 
-    style COMPUTE fill:#fdf8e4,stroke:#4f46e5,stroke-width:3px
+    style COMPUTE fill:#fdf8e4,stroke:#4f46e5,stroke-width:3px,color:#4338ca
 ```
 
 **Reading the diagram**: three tiers, top to bottom. Cloud Scheduler
