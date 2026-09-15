@@ -11,41 +11,38 @@ traced to Google Cloud Trace via OpenTelemetry.
 
 ```mermaid
 flowchart TD
+    SCHEDULER["Cloud Scheduler"]
     NETLIFY["Netlify<br/>Incident dashboard (static React)"]
 
-    subgraph GCP["Google Cloud — australia-southeast1"]
+    subgraph COMPUTE["Cloud Run (australia-southeast1)"]
         direction TB
-        SCHEDULER["Cloud Scheduler"]
-        TRAFFIC["Cloud Run Job: irp-synthetic-traffic<br/>*/7 * * * *<br/>SA: irp-synthetic-traffic-sa"]
-        TRIGGER["Cloud Run Job: irp-failure-injection-trigger<br/>06:43 and 18:43 UTC<br/>SA: irp-synthetic-traffic-sa"]
-        CLEANUP["Cloud Run Job: irp-synthetic-cleanup<br/>03:17 UTC daily<br/>SA: irp-synthetic-cleanup-sa"]
-        SERVICE["Cloud Run Service<br/>incident-response-platform (FastAPI)"]
-        SECRETS[("Secret Manager<br/>api-key, database-url, anthropic-api-key")]
-        TRACE["Cloud Trace"]
-
-        SCHEDULER --> TRAFFIC
-        SCHEDULER --> TRIGGER
-        SCHEDULER --> CLEANUP
-
-        TRAFFIC -->|POST /documents| SERVICE
-        TRIGGER -->|"POST /internal/failures/inject + 5 pipeline-stage calls"| SERVICE
-
-        SECRETS -.->|api-key| TRAFFIC
-        SECRETS -.->|api-key| TRIGGER
-        SECRETS -.->|database-url| CLEANUP
-        SECRETS -.->|"api-key, database-url, anthropic-api-key"| SERVICE
-
-        SERVICE -->|OpenTelemetry spans| TRACE
+        TRAFFIC["irp-synthetic-traffic<br/>*/7 * * * *<br/>SA: irp-synthetic-traffic-sa"]
+        TRIGGER["irp-failure-injection-trigger<br/>06:43 and 18:43 UTC<br/>SA: irp-synthetic-traffic-sa"]
+        CLEANUP["irp-synthetic-cleanup<br/>03:17 UTC daily<br/>SA: irp-synthetic-cleanup-sa"]
+        SERVICE["incident-response-platform<br/>FastAPI service"]
     end
 
-    NETLIFY -->|HTTPS, CORS-permitted| SERVICE
-
     DB[("Supabase Postgres<br/>via Transaction Pooler")]
+    SECRETS[("Secret Manager")]
     ANTHROPIC["Anthropic API"]
+    TRACE["Cloud Trace"]
 
+    SCHEDULER --> TRAFFIC
+    SCHEDULER --> TRIGGER
+    SCHEDULER --> CLEANUP
+    NETLIFY -->|HTTPS| SERVICE
+
+    TRAFFIC -->|POST /documents| SERVICE
+    TRIGGER -->|"POST /internal/failures/inject + 5 pipeline-stage calls"| SERVICE
+
+    CLEANUP -.->|"direct asyncpg, bypasses the API"| DB
     SERVICE -->|reads/writes| DB
-    CLEANUP -->|"direct asyncpg connection, deletes old synthetic rows"| DB
-    SERVICE -->|"4 agents' calls: Triage/Investigation/Diagnosis/Remediation"| ANTHROPIC
+    DB ~~~ TRACE
+    SERVICE -->|OpenTelemetry spans| TRACE
+    TRACE ~~~ ANTHROPIC
+    SERVICE -->|"4 agents' calls"| ANTHROPIC
+    ANTHROPIC ~~~ SECRETS
+    SERVICE -.->|reads secrets| SECRETS
 
     classDef compute fill:#e0e7ff,stroke:#4f46e5,stroke-width:1px,color:#1e1b4b
     classDef data fill:#dbeafe,stroke:#2563eb,stroke-width:1px,color:#1e3a8a
@@ -58,15 +55,40 @@ flowchart TD
     class SECRETS secrets
     class NETLIFY,ANTHROPIC external
     class TRACE observability
+
+    linkStyle 6 stroke:#dc2626,stroke-width:2px
 ```
 
-**Reading the diagram**: dashed arrows are Secret Manager grants, not
-traffic. `irp-synthetic-traffic-sa` is deliberately **reused** by both
+**Reading the diagram**: three tiers, top to bottom. Cloud Scheduler
+and Netlify are the only two things that originate activity from
+outside the system. The Cloud Run Service and all three background
+Jobs are grouped into one cluster — together, they're "the deployed
+application." Secret Manager, Supabase, Anthropic, and Cloud Trace sit
+below as what that cluster reads from or calls out to.
+
+Secret Manager is drawn with a single edge to the Service rather than
+one arrow per consumer, to avoid four near-identical arrows: in
+practice, the traffic and trigger Jobs each read `api-key`, the
+cleanup Job reads `database-url` directly, and the Service reads all
+three (`api-key`, `database-url`, `anthropic-api-key`).
+
+The one red dashed arrow is the diagram's single deliberate exception:
+`irp-synthetic-cleanup` connects to Supabase directly over `asyncpg`,
+bypassing the API entirely — everything else flows through the one
+FastAPI service. It's styled like the pipeline diagram's escalation
+paths for the same reason: not unimportant, but worth noticing
+precisely because it's the one path that breaks the general pattern.
+
+Netlify's call into the Service is a CORS-permitted HTTPS request —
+the only origin the backend's `CORS_ALLOWED_ORIGINS` setting allows
+besides local dev.
+
+`irp-synthetic-traffic-sa` is deliberately **reused** by both
 `irp-synthetic-traffic` and `irp-failure-injection-trigger` — both only
 ever make HTTP calls to the public API with an API key, an identical
 capability shape. `irp-synthetic-cleanup` gets its own service account
 (`irp-synthetic-cleanup-sa`) because it needs a materially more
-sensitive capability instead: a direct database connection, bypassing
-the API entirely (see `STATUS.md`, 2026-09-07). The dashboard never
-talks to the database, Secret Manager, or Anthropic directly — every
-path runs through the one FastAPI service.
+sensitive capability instead: that direct database connection (see
+`STATUS.md`, 2026-09-07). The dashboard never talks to the database,
+Secret Manager, or Anthropic directly — every path runs through the
+one FastAPI service.
