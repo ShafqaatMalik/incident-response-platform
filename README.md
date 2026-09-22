@@ -7,10 +7,11 @@ today. A FastAPI service runs continuously and takes real and
 deliberately-injected failures; each incident runs through four
 Claude-driven agents — Triage, Investigation, Diagnosis, Remediation — plus
 a non-AI Validator, ending at a mandatory human approval gate. Three
-automated background jobs generate genuine incidents around the clock, an
-18-scenario evaluation harness grades the agents against live models on
-demand, and a React dashboard, hosted on Netlify, lets a reviewer inspect
-and act on every incident in real time.
+automated background jobs keep the system genuinely active — one of them
+generating a real incident twice daily and running it through the full
+pipeline — an 18-scenario evaluation harness grades the agents against
+live models on demand, and a React dashboard, hosted on Netlify, lets a
+reviewer inspect and act on every incident in real time.
 
 ## Why this exists
 
@@ -116,6 +117,17 @@ The result is measured, not assumed: hallucinations flagged by the LLM
 judge dropped from 10 of 18 scenarios to 2 of 18, across two real
 evaluation runs using the same judge model — a direct, before-and-after
 result from the harness doing its job.
+
+A separate, quieter gap surfaced later: the evaluation harness's GitHub
+Actions workflow had a nightly cron schedule that ran unmonitored since
+deployment, consuming a meaningful share of the monthly Anthropic budget
+before being caught. The app's own $2/day budget circuit breaker only
+tracks spend inside its own request path — it has no visibility into a
+CI/CD job calling the same account directly. Fixed by disabling the
+schedule and running evaluations on demand instead; the broader lesson
+was that every independent source of spend against a shared account
+needs its own deliberate attention, not an assumption that one guardrail
+covers everything.
 
 ## Safety design
 
