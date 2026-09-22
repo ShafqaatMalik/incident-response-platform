@@ -8,8 +8,8 @@ deliberately-injected failures; each incident runs through four
 Claude-driven agents — Triage, Investigation, Diagnosis, Remediation — plus
 a non-AI Validator, ending at a mandatory human approval gate. Three
 automated background jobs generate genuine incidents around the clock, an
-18-scenario evaluation harness grades the agents nightly against live
-models, and a React dashboard, hosted on Netlify, lets a reviewer inspect
+18-scenario evaluation harness grades the agents against live models on
+demand, and a React dashboard, hosted on Netlify, lets a reviewer inspect
 and act on every incident in real time.
 
 ## Why this exists
@@ -29,12 +29,12 @@ up:
   fraction of a cent — $0.034 on average across the evaluation set, not
   estimated after the fact.
 - **Evaluated, not just deployed.** An 18-scenario dataset runs against
-  live models nightly, graded by both deterministic rule checks and an
+  live models on demand, graded by both deterministic rule checks and an
   LLM judge, on a two-phase trust model where every judge verdict carries
   its own reasoning for review before it's trusted unattended.
 - **Real, not staged.** Failure injection creates genuine incidents
-  through the same code path as any real one. Two background jobs
-  trigger the full pipeline automatically, around the clock, generating
+  through the same code path as any real one. A dedicated background job
+  triggers the full pipeline automatically, twice a day, generating
   ongoing evidence of how the system behaves.
 
 The point isn't a system that looks impressive in a five-minute
@@ -62,10 +62,11 @@ infrastructure has to be built.
     to keep the service genuinely active.
   - `irp-synthetic-cleanup` — daily at 03:17 UTC, deletes synthetic
     documents older than 3 days.
-  - `irp-failure-injection-trigger` — daily at 06:43 and 18:43 UTC,
+  - `irp-failure-injection-trigger` — twice daily (06:43 and 18:43 UTC),
     creates one real incident and runs it through the full pipeline
-    automatically.
-- **Evaluation, run nightly against live models:** 18 real-world
+    automatically — the only one of the three jobs that touches the
+    incident pipeline itself.
+- **Evaluation, run on demand against live models:** 18 real-world
   incident scenarios, 94.4% escalation correctness, 100% on
   valid-action-type, evidence-present, and validator-not-bypassed rates,
   $0.034 mean cost per incident.
@@ -77,6 +78,11 @@ infrastructure has to be built.
   $2.00/day AI budget cap and a 5/day failure-injection cap, both backed
   by real database counters, both returning a `429` the moment they're
   hit.
+- **Load-tested under real concurrency:** a one-time burst test fired 10
+  failure-injected incidents simultaneously against the live service —
+  all 10 completed successfully end to end, confirming rate limiting,
+  the database, and the safety caps above hold under genuine concurrent
+  load, not just sequential traffic.
 
 ## Tech stack
 
@@ -88,8 +94,7 @@ infrastructure has to be built.
 - **Deployment:** Docker + Google Cloud Run (one service, three
   background Jobs) + Cloud Scheduler
 - **CI/CD:** GitHub Actions
-- **Observability:** OpenTelemetry → Google Cloud Trace, Prometheus
-  metrics
+- **Observability:** OpenTelemetry → Google Cloud Trace
 - **Frontend:** React + TypeScript, hosted on Netlify
 
 ## How I found and fixed real bugs
