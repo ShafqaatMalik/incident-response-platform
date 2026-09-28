@@ -4,7 +4,7 @@ import anthropic
 import pytest
 from pydantic import ValidationError
 
-from app.agents.triage import TriageFailedError, call_triage_agent_with_retry
+from app.agents.triage import TRIAGE_SYSTEM_PROMPT, TriageFailedError, call_triage_agent_with_retry
 from app.models.schemas import TriageContext, TriageResult
 
 CONTEXT = TriageContext(trigger="Service returning 500s", initial_evidence=["500s in logs"])
@@ -54,3 +54,8 @@ async def test_escalates_after_second_failure() -> None:
     with patch("app.agents.triage._request_triage", mock), pytest.raises(TriageFailedError):
         await call_triage_agent_with_retry(CONTEXT, "claude-sonnet-5", None)
     assert mock.await_count == 2
+
+
+def test_system_prompt_defines_all_four_severity_levels() -> None:
+    for level in ("critical", "high", "medium", "low"):
+        assert f"- {level}:" in TRIAGE_SYSTEM_PROMPT
