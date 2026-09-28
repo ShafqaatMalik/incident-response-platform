@@ -1,7 +1,10 @@
 import type { ApiErrorBody, Incident, IncidentListResponse } from '../types'
 
-const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000'
-const API_KEY = import.meta.env.VITE_API_KEY ?? ''
+// Always a relative, same-origin path -- in dev, Vite's own server proxy
+// (vite.config.ts) forwards it to the local backend; in production, a
+// Netlify Function does the same against the live backend. Neither the
+// browser nor this file ever holds an API key.
+const BASE_URL = '/api'
 
 export class ApiError extends Error {
   status: number
@@ -25,7 +28,6 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     response = await fetch(`${BASE_URL}${path}`, {
       ...init,
       headers: {
-        'X-API-Key': API_KEY,
         ...(init?.body ? { 'Content-Type': 'application/json' } : {}),
         ...init?.headers,
       },
@@ -107,7 +109,7 @@ export function describeError(err: unknown): string {
   }
   if (err instanceof ApiError) {
     if (err.status === 401) {
-      return "Invalid API key. Check frontend/.env.local's VITE_API_KEY."
+      return 'The backend rejected the request — the Netlify Function\'s own API_KEY may be missing or misconfigured.'
     }
     return err.message
   }
