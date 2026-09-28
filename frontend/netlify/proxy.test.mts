@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { extractInternalPath, matchAllowlist } from './proxy.mts'
+import { extractInternalPath, matchAllowlist } from './functions/proxy.mts'
 
 const ID = 'a1b2c3d4-e5f6-4789-a012-b3c4d5e6f789'
 
