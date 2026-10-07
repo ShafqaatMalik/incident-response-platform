@@ -55,7 +55,7 @@ async def main() -> int:
             logger.error("unknown scenario ids: %s", sorted(unknown))
             return 1
         scenarios = [s for s in scenarios if s.id in wanted]
-        
+
     settings = get_settings()
     exporter = _configure_in_memory_tracing()
     sessionmaker = get_sessionmaker()

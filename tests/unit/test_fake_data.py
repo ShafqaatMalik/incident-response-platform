@@ -112,9 +112,11 @@ def test_negated_shipped_phrase_also_selects_build_failure() -> None:
     assert select_scenario(trigger).name == "deployment_build_failure"
 
 
-
 def test_self_resolving_deadlock_selects_benign_deadlock_scenario() -> None:
-    trigger = "Sporadic deadlock detected errors, each auto-resolved by Postgres. No customer-facing errors reported."
+    trigger = (
+        "Sporadic deadlock detected errors, each auto-resolved by Postgres. "
+        "No customer-facing errors reported."
+    )
     assert select_scenario(trigger).name == "database_benign_deadlock"
 
 
@@ -126,5 +128,8 @@ def test_serious_deadlock_still_selects_database_scenario() -> None:
 
 
 def test_deploy_that_added_synchronous_call_selects_latency_after_deploy() -> None:
-    trigger = "Checkout latency climbed after the 09:00 UTC deployment, which added a new synchronous call to the fraud-detection service."
+    trigger = (
+        "Checkout latency climbed after the 09:00 UTC deployment, which added a new "
+        "synchronous call to the fraud-detection service."
+    )
     assert select_scenario(trigger).name == "latency_after_deploy"

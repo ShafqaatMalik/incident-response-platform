@@ -131,8 +131,16 @@ _SCENARIOS: dict[str, FakeScenario] = {
     "database_benign_deadlock": FakeScenario(
         name="database_benign_deadlock",
         log_lines=[
-            (8, "WARN", "deadlock detected on payments table; resolved by Postgres deadlock detection"),
-            (25, "WARN", "deadlock detected on payments table; victim transaction retried successfully"),
+            (
+                8,
+                "WARN",
+                "deadlock detected on payments table; resolved by Postgres deadlock detection",
+            ),
+            (
+                25,
+                "WARN",
+                "deadlock detected on payments table; victim transaction retried successfully",
+            ),
             (45, "INFO", "no customer-facing errors recorded in the sampled window"),
         ],
         deployment=None,
@@ -144,7 +152,14 @@ _SCENARIOS: dict[str, FakeScenario] = {
         name="latency_after_deploy",
         log_lines=[
             (5, "WARN", "checkout p99 latency 2.1s, up from 400ms baseline"),
-            (8, "INFO", "checkout request traces show an outbound call to the fraud-detection service on the request path"),
+            (
+                8,
+                "INFO",
+                (
+                    "checkout request traces show an outbound call to the fraud-detection "
+                    "service on the request path"
+                ),
+            ),
             (15, "INFO", "no error rate increase observed alongside latency rise"),
         ],
         deployment=(180, "v2.8.0", "checkout flow change: added synchronous fraud-detection call"),
@@ -238,7 +253,12 @@ def select_scenario(trigger: str) -> FakeScenario:
         return _SCENARIOS["deployment_build_failure"]
     if "deadlock" in lowered and any(
         marker in lowered
-        for marker in ("auto-resolved", "self-resolv", "resolved automatically", "no customer-facing")
+        for marker in (
+            "auto-resolved",
+            "self-resolv",
+            "resolved automatically",
+            "no customer-facing",
+        )
     ):
         return _SCENARIOS["database_benign_deadlock"]
     if "synchronous" in lowered and any(
