@@ -110,3 +110,21 @@ def test_negated_shipped_phrase_also_selects_build_failure() -> None:
     # of "reached production") should also trigger it.
     trigger = "No new build has shipped to production"
     assert select_scenario(trigger).name == "deployment_build_failure"
+
+
+
+def test_self_resolving_deadlock_selects_benign_deadlock_scenario() -> None:
+    trigger = "Sporadic deadlock detected errors, each auto-resolved by Postgres. No customer-facing errors reported."
+    assert select_scenario(trigger).name == "database_benign_deadlock"
+
+
+def test_serious_deadlock_still_selects_database_scenario() -> None:
+    # A deadlock that is NOT described as self-resolving or harmless must
+    # keep using the normal database story, not the benign one.
+    trigger = "Deadlock detected on the orders table, writes are failing for customers"
+    assert select_scenario(trigger).name == "database"
+
+
+def test_deploy_that_added_synchronous_call_selects_latency_after_deploy() -> None:
+    trigger = "Checkout latency climbed after the 09:00 UTC deployment, which added a new synchronous call to the fraud-detection service."
+    assert select_scenario(trigger).name == "latency_after_deploy"

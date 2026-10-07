@@ -128,6 +128,30 @@ _SCENARIOS: dict[str, FakeScenario] = {
         p99_latency_ms=320.0,
         cpu_utilization=0.35,
     ),
+    "database_benign_deadlock": FakeScenario(
+        name="database_benign_deadlock",
+        log_lines=[
+            (8, "WARN", "deadlock detected on payments table; resolved by Postgres deadlock detection"),
+            (25, "WARN", "deadlock detected on payments table; victim transaction retried successfully"),
+            (45, "INFO", "no customer-facing errors recorded in the sampled window"),
+        ],
+        deployment=None,
+        error_rate=0.01,
+        p99_latency_ms=340.0,
+        cpu_utilization=0.38,
+    ),
+    "latency_after_deploy": FakeScenario(
+        name="latency_after_deploy",
+        log_lines=[
+            (5, "WARN", "checkout p99 latency 2.1s, up from 400ms baseline"),
+            (8, "INFO", "checkout request traces show an outbound call to the fraud-detection service on the request path"),
+            (15, "INFO", "no error rate increase observed alongside latency rise"),
+        ],
+        deployment=(180, "v2.8.0", "checkout flow change: added synchronous fraud-detection call"),
+        error_rate=0.02,
+        p99_latency_ms=2100.0,
+        cpu_utilization=0.45,
+    ),
     "deployment_build_failure": FakeScenario(
         name="deployment_build_failure",
         log_lines=[
@@ -212,7 +236,15 @@ def select_scenario(trigger: str) -> FakeScenario:
     # story.
     if any(_has_negated_phrase(lowered, phrase) for phrase in _BUILD_FAILURE_PHRASES):
         return _SCENARIOS["deployment_build_failure"]
-
+    if "deadlock" in lowered and any(
+        marker in lowered
+        for marker in ("auto-resolved", "self-resolv", "resolved automatically", "no customer-facing")
+    ):
+        return _SCENARIOS["database_benign_deadlock"]
+    if "synchronous" in lowered and any(
+        word in lowered for word in ("deploy", "release", "rollout")
+    ):
+        return _SCENARIOS["latency_after_deploy"]
     for name, keywords in _KEYWORD_ORDER:
         if any(_keyword_matches(lowered, keyword) for keyword in keywords):
             return _SCENARIOS[name]

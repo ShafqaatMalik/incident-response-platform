@@ -44,6 +44,18 @@ async def main() -> int:
         logger.error("scenario set failed validation: %s", exc)
         return 1
 
+    if "--only" in sys.argv:
+        idx = sys.argv.index("--only")
+        if idx + 1 >= len(sys.argv):
+            logger.error("--only needs a comma-separated list of scenario ids")
+            return 1
+        wanted = set(sys.argv[idx + 1].split(","))
+        unknown = wanted - {s.id for s in scenarios}
+        if unknown:
+            logger.error("unknown scenario ids: %s", sorted(unknown))
+            return 1
+        scenarios = [s for s in scenarios if s.id in wanted]
+        
     settings = get_settings()
     exporter = _configure_in_memory_tracing()
     sessionmaker = get_sessionmaker()
