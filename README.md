@@ -27,7 +27,7 @@ up:
   risky ever executes without a human decision.
 - **Cost-aware operation.** A budget circuit breaker halts new AI calls
   once daily spend hits $2.00. Per-incident cost is tracked to the
-  fraction of a cent — $0.034 on average across the evaluation set, not
+  fraction of a cent — $0.038 on average across the evaluation set, not
   estimated after the fact.
 - **Evaluated, not just deployed.** An 18-scenario dataset runs against
   live models on demand, graded by both deterministic rule checks and an
@@ -67,10 +67,11 @@ infrastructure has to be built.
     creates one real incident and runs it through the full pipeline
     automatically — the only one of the three jobs that touches the
     incident pipeline itself.
+    
 - **Evaluation, run on demand against live models:** 18 real-world
   incident scenarios, 94.4% escalation correctness, 100% on
   valid-action-type, evidence-present, and validator-not-bypassed rates,
-  $0.034 mean cost per incident.
+  about $0.038 mean cost per incident.
 - **Failure injection**, available on demand or via the automated
   trigger above: 5 categories — `dependency_timeout`,
   `elevated_error_rate`, `latency_spike`, `gradual_degradation`,
@@ -117,6 +118,23 @@ The result is measured, not assumed: hallucinations flagged by the LLM
 judge dropped from 10 of 18 scenarios to 2 of 18, across two real
 evaluation runs using the same judge model — a direct, before-and-after
 result from the harness doing its job.
+
+A later evaluation round showed three scenarios graded incorrect on
+remediation. Reading the reports showed two were test-data problems, not
+agent problems: the fake evidence for a harmless deadlock described a full
+disk, and a deploy-related latency scenario was handed an unrelated stalled
+rollout, so the agent correctly refused to roll back something it couldn't
+see. The third was a real agent weakness: the prompt listed the six actions
+by name only, so for a full-disk incident the agent stretched `scale_up` to
+mean "expand the volume" and bundled data-moving steps into it. Fixing the
+two fixtures and defining each action in the prompt brought incorrect
+remediation verdicts from 3 of 18 to 1 of 18. Part of that gain comes from
+correcting the test data, not from the agents improving.
+
+Separately, the Triage prompt had no criteria for choosing a severity, so the
+same trigger could land on different levels across runs. Adding a four-level
+rubric made all five failure-injection categories return a consistent
+severity across 25 repeated runs.
 
 A separate, quieter gap surfaced later: the evaluation harness's GitHub
 Actions workflow had a nightly cron schedule that ran unmonitored since
