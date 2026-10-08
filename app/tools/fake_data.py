@@ -179,6 +179,19 @@ _SCENARIOS: dict[str, FakeScenario] = {
         p99_latency_ms=310.0,
         cpu_utilization=0.32,
     ),
+    "gateway_502_after_config_deploy": FakeScenario(
+        name="gateway_502_after_config_deploy",
+        log_lines=[
+            (1, "ERROR", "gateway returned 502 Bad Gateway for GET /v2/orders"),
+            (2, "ERROR", "upstream connect error for /v2/orders: connection refused"),
+            (10, "ERROR", "first 502 Bad Gateway on /v2/orders; upstream connection refused"),
+            (12, "INFO", "config deployment applied to the orders upstream service"),
+        ],
+        deployment=(12, "config-change", "configuration update for the orders upstream service"),
+        error_rate=0.95,
+        p99_latency_ms=45.0,
+        cpu_utilization=0.18,
+    ),
 }
 
 # Checked in this fixed order; first keyword match wins. Overlaps are
@@ -226,6 +239,7 @@ def _keyword_matches(lowered_trigger: str, keyword: str) -> bool:
 
 
 _BUILD_FAILURE_PHRASES = ("reached production", "shipped", "deployed to production")
+_GATEWAY_CHANGE_KEYWORDS = ("deploy", "release", "rollout", "config change", "configuration change")
 
 
 def _has_negated_phrase(lowered_trigger: str, phrase: str) -> bool:
@@ -265,6 +279,14 @@ def select_scenario(trigger: str) -> FakeScenario:
         word in lowered for word in ("deploy", "release", "rollout")
     ):
         return _SCENARIOS["latency_after_deploy"]
+    # A 502/Bad Gateway alongside a (non-negated) deploy/config change is
+    # a gateway-can't-reach-upstream story -- checked ahead of the
+    # database bucket, whose "upstream"/"connection refused" keywords
+    # would otherwise claim it.
+    if ("502" in lowered or "bad gateway" in lowered) and any(
+        _keyword_matches(lowered, word) for word in _GATEWAY_CHANGE_KEYWORDS
+    ):
+        return _SCENARIOS["gateway_502_after_config_deploy"]
     for name, keywords in _KEYWORD_ORDER:
         if any(_keyword_matches(lowered, keyword) for keyword in keywords):
             return _SCENARIOS[name]

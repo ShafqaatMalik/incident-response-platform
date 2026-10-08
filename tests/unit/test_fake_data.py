@@ -133,3 +133,22 @@ def test_deploy_that_added_synchronous_call_selects_latency_after_deploy() -> No
         "synchronous call to the fraud-detection service."
     )
     assert select_scenario(trigger).name == "latency_after_deploy"
+
+
+def test_api_001_trigger_selects_gateway_502_after_config_deploy() -> None:
+    trigger = (
+        "Public API gateway returning HTTP 502 Bad Gateway for all requests to /v2/orders "
+        "since 14:03 UTC, following a config deploy at 14:01 UTC that changed the upstream "
+        "service's listening port."
+    )
+    assert select_scenario(trigger).name == "gateway_502_after_config_deploy"
+
+
+def test_plain_database_trigger_does_not_select_gateway_502_scenario() -> None:
+    trigger = "Postgres connection pool exhausted, writes timing out"
+    assert select_scenario(trigger).name == "database"
+
+
+def test_502_without_deploy_does_not_select_gateway_502_scenario() -> None:
+    trigger = "Gateway returning 502 Bad Gateway on /v1/cart. No recent deployments."
+    assert select_scenario(trigger).name != "gateway_502_after_config_deploy"
